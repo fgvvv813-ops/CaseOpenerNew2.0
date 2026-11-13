@@ -1,745 +1,606 @@
 package com.caseopener.newtwo
 
-import android.content.Context
 import android.os.Bundle
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import org.json.JSONObject
-import org.json.JSONArray
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-private val Bg = Color(0xFF0A0713)
-private val Panel = Color(0xFF1B1429)
-private val Accent = Color(0xFFC177FF)
+private val Background = Color(0xFF0A0713)
+private val CardColor = Color(0xFF1B1429)
+private val Violet = Color(0xFFC177FF)
 private val Gold = Color(0xFFFFD079)
-private val Muted = Color(0xFFC6BDD2)
-
-private data class CaseInfo(val name: String, val cost: Int, val emoji: String, val subtitle: String)
-private data class Prize(val name: String, val rarity: String, val value: Int, val emoji: String, val color: Color)
-private data class ReleaseNotes(val added: List<String>, val improved: List<String>)
-
-private val cases = listOf(
-    CaseInfo("STREET", 100, "📦", "Стартовая коллекция"),
-    CaseInfo("NEON", 250, "💠", "Яркие редкие предметы"),
-    CaseInfo("LEGEND", 500, "👑", "Шанс на легенду")
-)
-
-// В интерфейсе показываются изменения только версии, установленной на устройстве.
-// Для будущей версии добавьте новую запись, а старую не используйте как запасную.
-private val releaseNotesByVersion = mapOf(
-    "0.0.002" to ReleaseNotes(
-        added = listOf(
-            "Добавлена кнопка «Что нового?» с описанием изменений.",
-            "Номер версии теперь виден в игре."
-        ),
-        improved = listOf(
-            "Игра удобнее на маленьких экранах и планшетах.",
-            "Улучшена прокрутка инвентаря и расположение кейсов.",
-            "Повышена надёжность сохранения полученных наград."
-        )
-    ),
-    "0.0.003" to ReleaseNotes(
-        added = listOf(
-            "Новая иконка игры с фиолетовым кейсом.",
-            "Кнопки «Сохранить прогресс» и «Восстановить прогресс» в профиле."
-        ),
-        improved = listOf(
-            "Полностью обновлены цвета, карточки кейсов и оформление главного экрана.",
-            "Стали удобнее навигация, инвентарь, профиль и окно обновлений.",
-            "Улучшено сохранение баланса, коллекции и статистики."
-        )
-    ),
-    "0.0.004" to ReleaseNotes(
-        added = listOf(
-            "Онлайн-режим с созданием аккаунта и входом по логину и паролю.",
-            "Общий прогресс аккаунта: монеты, кейсы и инвентарь доступны после входа с другого устройства."
-        ),
-        improved = listOf(
-            "Кейсы и награды загружаются с сервера.",
-            "Профиль автоматически синхронизирует игровой прогресс.",
-            "Офлайн-режим по-прежнему доступен без интернета."
-        )
-    )
-)
-
-private fun rarityColor(name: String): Color = when (name) {
-    "Редкий" -> Color(0xFF55A8FF)
-    "Эпический" -> Color(0xFFC38BFF)
-    "Мифический" -> Color(0xFFFF729E)
-    "Легендарный" -> Gold
-    else -> Color(0xFFB0BEC5)
-}
-
-private fun generatePrize(case: CaseInfo): Prize {
-    val rarity = when (Random.nextInt(1000)) {
-        in 0..499 -> "Обычный"
-        in 500..779 -> "Редкий"
-        in 780..929 -> "Эпический"
-        in 930..989 -> "Мифический"
-        else -> "Легендарный"
-    }
-    val multiplier = when (rarity) {
-        "Обычный" -> 0.30
-        "Редкий" -> 0.75
-        "Эпический" -> 1.65
-        "Мифический" -> 3.5
-        else -> 12.0
-    }
-    val names = when (rarity) {
-        "Обычный" -> listOf("Carbon", "Dust", "Urban")
-        "Редкий" -> listOf("Pulse", "Glacier", "Electric")
-        "Эпический" -> listOf("Inferno", "Nebula", "Phantom")
-        "Мифический" -> listOf("Dragon", "Eclipse", "Spectrum")
-        else -> listOf("Royal Crown", "Solar Flare", "Eternal")
-    }
-    val symbol = when (rarity) {
-        "Обычный" -> "⚙️"
-        "Редкий" -> "🔷"
-        "Эпический" -> "🔮"
-        "Мифический" -> "🔥"
-        else -> "👑"
-    }
-    val price = (case.cost * multiplier * (0.8 + Random.nextDouble() * 0.4)).toInt().coerceAtLeast(1)
-    return Prize("${names.random()} • ${case.name}", rarity, price, symbol, rarityColor(rarity))
-}
-
-private fun readInventory(saved: String): List<Prize> = saved
-    .split(";")
-    .filter { it.isNotBlank() }
-    .mapNotNull { raw ->
-        val parts = raw.split("|")
-        val price = parts.getOrNull(2)?.toIntOrNull()
-        if (parts.size != 3 || price == null) null
-        else Prize(parts[0], parts[1], price, "✦", rarityColor(parts[1]))
-    }
+private val SecondaryText = Color(0xFFBEB5CB)
+private val Danger = Color(0xFFFFB3C2)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = getSharedPreferences("caseopener_save", Context.MODE_PRIVATE)
-        setContent {
-            var balance by remember { mutableIntStateOf(prefs.getInt("balance", 1500)) }
-            var openings by remember { mutableIntStateOf(prefs.getInt("openings", 0)) }
-            val inventory = remember {
-                mutableStateListOf<Prize>().also { it.addAll(readInventory(prefs.getString("items", "").orEmpty())) }
-            }
-            fun saveProgress() {
-                prefs.edit()
-                    .putInt("balance", balance)
-                    .putInt("openings", openings)
-                    .putString("items", inventory.joinToString(";") { "${it.name}|${it.rarity}|${it.value}" })
-                    .apply()
-            }
+        setContent { CaseOpenerApp() }
+    }
+}
 
-            // Резервное копирование позволяет переносить прогресс при переустановке.
-            val exportLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.CreateDocument("application/json")
-            ) { uri ->
-                if (uri != null) {
-                    try {
-                        val items = JSONArray()
-                        inventory.forEach { prize ->
-                            items.put(
-                                JSONObject().put("name", prize.name).put("rarity", prize.rarity)
-                                    .put("value", prize.value)
-                            )
-                        }
-                        val backup = JSONObject()
-                            .put("format", 1)
-                            .put("balance", balance)
-                            .put("openings", openings)
-                            .put("items", items)
-                        val bytes = backup.toString(2).toByteArray(Charsets.UTF_8)
-                        val stream = this@MainActivity.contentResolver.openOutputStream(uri)
-                            ?: error("Файл не доступен")
-                        stream.use { it.write(bytes) }
-                        Toast.makeText(this@MainActivity, "Прогресс сохранён в файл", Toast.LENGTH_LONG).show()
-                    } catch (ex: Exception) {
-                        Toast.makeText(this@MainActivity, "Не удалось сохранить файл: ${ex.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-            val importLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.OpenDocument()
-            ) { uri ->
-                if (uri != null) {
-                    try {
-                        val stream = this@MainActivity.contentResolver.openInputStream(uri)
-                            ?: error("Файл не доступен")
-                        val text = stream.bufferedReader().use { it.readText() }
-                        require(text.length <= 1_000_000) { "Слишком большой файл" }
-                        val backup = JSONObject(text)
-                        require(backup.getInt("format") == 1) { "Неподдерживаемый формат" }
-                        val newBalance = backup.getInt("balance")
-                        val newOpenings = backup.getInt("openings")
-                        require(newBalance in 0..1000000000 && newOpenings in 0..1000000000) {
-                            "Некорректные данные"
-                        }
-                        val rawItems = backup.getJSONArray("items")
-                        require(rawItems.length() <= 5000) { "Слишком много предметов" }
-                        val restored = (0 until rawItems.length()).map { index ->
-                            val item = rawItems.getJSONObject(index)
-                            val name = item.getString("name")
-                            val rarity = item.getString("rarity")
-                            val value = item.getInt("value")
-                            require(name.length <= 100 && name.isNotBlank() && value in 1..1000000000 &&
-                                !name.contains("|") && !name.contains(";") &&
-                                !rarity.contains("|") && !rarity.contains(";")) {
-                                "Некорректные данные предмета"
-                            }
-                            Prize(name, rarity, value, "✦", rarityColor(rarity))
-                        }
-                        balance = newBalance
-                        openings = newOpenings
-                        inventory.clear()
-                        inventory.addAll(restored)
-                        saveProgress()
-                        Toast.makeText(this@MainActivity, "Прогресс восстановлен", Toast.LENGTH_LONG).show()
-                    } catch (ex: Exception) {
-                        Toast.makeText(this@MainActivity, "Не удалось восстановить: ${ex.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
+@Composable
+private fun CaseOpenerApp() {
+    val context = LocalContext.current
+    val client = remember { GameClient(context.applicationContext) }
+    val scope = rememberCoroutineScope()
+    var destination by rememberSaveable { mutableStateOf("home") }
+    var selectedCaseId by rememberSaveable { mutableStateOf("") }
+    var showNotes by rememberSaveable { mutableStateOf(false) }
+    DisposableEffect(client) { onDispose { client.close() } }
 
-            var tab by rememberSaveable { mutableIntStateOf(0) }
-            var onlineMode by rememberSaveable { mutableStateOf(false) }
-            var selectedCase by remember { mutableStateOf<CaseInfo?>(null) }
-            var winningPrize by remember { mutableStateOf<Prize?>(null) }
-            var opening by remember { mutableStateOf(false) }
-            var showReleaseNotes by rememberSaveable { mutableStateOf(false) }
-            var showImportConfirmation by rememberSaveable { mutableStateOf(false) }
-
-            LaunchedEffect(opening) {
-                if (opening) {
-                    delay(1500)
-                    opening = false
-                }
-            }
-
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Accent, secondary = Gold, background = Bg, surface = Panel,
-                    onBackground = Color.White, onSurface = Color.White
+    val palette = darkColorScheme(
+        primary=Violet, secondary=Gold, background=Background, surface=CardColor,
+        onSurface=Color.White, onBackground=Color.White
+    )
+    MaterialTheme(colorScheme=palette) {
+        Box(Modifier.fillMaxSize().background(Background).statusBarsPadding().navigationBarsPadding()) {
+            if (client.token == null) {
+                LoginScreen(client)
+            } else if (client.state == null) {
+                ConnectScreen(
+                    status=client.status,
+                    message=client.error,
+                    onRetry={ client.reconnect() },
+                    onLogout={scope.launch {client.logout(); destination="home"}}
                 )
-            ) {
-                BoxWithConstraints(
-                    Modifier.fillMaxSize().background(Bg).statusBarsPadding().navigationBarsPadding()
-                ) {
-                    val wide = maxWidth >= 720.dp
-                    val compact = maxWidth < 370.dp
-                    val pad = if (compact) 12.dp else 18.dp
-
+            } else {
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val wide = maxWidth >= 710.dp
+                    val padding = if(maxWidth < 370.dp) 12.dp else 17.dp
                     Column(
-                        Modifier.fillMaxSize().widthIn(max = 1160.dp).align(Alignment.TopCenter)
+                        Modifier.fillMaxSize().widthIn(max=1120.dp).align(Alignment.TopCenter)
                     ) {
-                        Header(balance = balance, compact = compact, pad = pad, onlineMode = onlineMode)
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = pad),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            FilterChip(
-                                selected = !onlineMode,
-                                onClick = { onlineMode = false },
-                                label = { Text("⌂  Офлайн", fontWeight = FontWeight.Bold) }
-                            )
-                            FilterChip(
-                                selected = onlineMode,
-                                onClick = { onlineMode = true },
-                                label = { Text("☁  Онлайн", fontWeight = FontWeight.Bold) }
-                            )
-                        }
-                        NavigationTabs(
-                            selectedTab = tab,
-                            compact = compact,
-                            padding = pad,
-                            onTabClick = { tab = it }
-                        )
-                        TextButton(
-                            onClick = { showReleaseNotes = true },
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                                .padding(horizontal = pad),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
+                        GameHeader(client, padding, onProfile={destination="profile"})
+                        if (client.status != "Онлайн") {
                             Text(
-                                "Что добавлено в обновлении?  •  v" + BuildConfig.VERSION_NAME,
-                                fontSize = if (compact) 11.sp else 13.sp,
-                                textAlign = TextAlign.Center
+                                "Нет связи с сервером — данные сохранятся, действия временно недоступны",
+                                color=Gold, fontSize=11.sp, textAlign=TextAlign.Center,
+                                modifier=Modifier.fillMaxWidth().padding(horizontal=padding,vertical=4.dp)
                             )
                         }
-                        if (onlineMode) {
-                            OnlineHub(modifier = Modifier.weight(1f), tab = tab)
-                        } else when (tab) {
-                            0 -> CaseScreen(
-                                modifier = Modifier.weight(1f),
-                                wide = wide,
-                                compact = compact,
-                                padding = pad,
-                                balance = balance,
-                                chosen = selectedCase,
-                                winning = winningPrize,
-                                opening = opening,
-                                onSelect = {
-                                    if (!opening) {
-                                        selectedCase = it
-                                        winningPrize = null
-                                    }
-                                },
-                                onOpen = {
-                                    val choice = selectedCase
-                                    if (!opening && choice != null && balance >= choice.cost) {
-                                        opening = true
-                                        winningPrize = generatePrize(choice)
-                                        balance -= choice.cost
-                                        inventory.add(0, winningPrize!!)
-                                        openings++
-                                        // Сохраняем ДО анимации — поворот экрана не потеряет награду.
-                                        saveProgress()
-                                    }
-                                }
+                        if (client.error != null) {
+                            Text(
+                                client.error.orEmpty(),
+                                color=Danger, fontSize=12.sp,
+                                modifier=Modifier.fillMaxWidth().padding(horizontal=padding,vertical=6.dp)
                             )
-                            1 -> InventoryScreen(
-                                modifier = Modifier.weight(1f),
-                                padding = pad,
-                                wide = wide,
-                                inventory = inventory,
-                                onSell = { prize ->
-                                    if (inventory.remove(prize)) {
-                                        balance += prize.value
-                                        saveProgress()
+                        }
+                        when (destination) {
+                            "home" -> HomeScreen(
+                                client=client,
+                                modifier=Modifier.weight(1f),
+                                padding=padding,
+                                onCases={destination="cases"},
+                                onCase={selectedCaseId=it; destination="detail"},
+                                onNotes={showNotes=true}
+                            )
+                            "cases" -> CasesScreen(
+                                cases=client.cases,
+                                modifier=Modifier.weight(1f),
+                                padding=padding,
+                                onCase={selectedCaseId=it; destination="detail"}
+                            )
+                            "detail" -> {
+                                val gameCase=client.cases.firstOrNull { it.id==selectedCaseId }
+                                if (gameCase == null) {
+                                    Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {
+                                        Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                                            Text("Этот кейс больше недоступен",color=SecondaryText)
+                                            TextButton(onClick={destination="cases"}) { Text("Все кейсы") }
+                                        }
                                     }
+                                } else {
+                                    CaseDetailScreen(
+                                        gameCase=gameCase,
+                                        client=client,
+                                        modifier=Modifier.weight(1f),
+                                        padding=padding,
+                                        onBack={destination="cases"}
+                                    )
                                 }
+                            }
+                            "inventory" -> InventoryScreen(
+                                client=client,
+                                modifier=Modifier.weight(1f),
+                                padding=padding,
+                                wide=wide
                             )
                             else -> ProfileScreen(
-                                modifier = Modifier.weight(1f),
-                                padding = pad,
-                                balance = balance,
-                                openings = openings,
-                                inventory = inventory,
-                                onBackup = { exportLauncher.launch("CaseOpener-progress.json") },
-                                onRestore = { showImportConfirmation = true }
+                                client=client,
+                                modifier=Modifier.weight(1f),
+                                padding=padding,
+                                onLogout={scope.launch {client.logout();destination="home"}}
                             )
                         }
+                        GameNavigation(
+                            destination=destination,
+                            padding=padding,
+                            onNavigate={destination=it}
+                        )
                     }
                 }
-
-                if (showReleaseNotes) {
-                    WhatsNewDialog(onDismiss = { showReleaseNotes = false })
+                val reward=client.reward
+                if (reward!=null) {
+                    val sourceCase=client.cases.firstOrNull { it.id==client.rewardCaseId }
+                    RouletteDialog(reward=reward,caseInfo=sourceCase,
+                        onDone={client.acknowledgeReward()})
                 }
-                if (showImportConfirmation) {
-                    AlertDialog(
-                        onDismissRequest = { showImportConfirmation = false },
-                        containerColor = Panel,
-                        title = { Text("Восстановить прогресс?") },
-                        text = {
-                            Text("Текущий баланс, инвентарь и статистика будут заменены данными из выбранного файла.")
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showImportConfirmation = false
-                                importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                            }) { Text("Выбрать файл") }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showImportConfirmation = false }) { Text("Отмена") }
-                        }
-                    )
-                }
+            }
+            if(showNotes) {
+                ReleaseNotesDialog(onDismiss={showNotes=false})
             }
         }
     }
 }
 
 @Composable
-private fun Header(balance: Int, compact: Boolean, pad: androidx.compose.ui.unit.Dp, onlineMode: Boolean) {
+private fun LoginScreen(client: GameClient) {
+    val scope=rememberCoroutineScope()
+    var registration by rememberSaveable {mutableStateOf(false)}
+    var username by rememberSaveable {mutableStateOf("")}
+    var password by remember { mutableStateOf("") }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal=20.dp,vertical=28.dp),
+            horizontalAlignment=Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(12.dp))
+            Image(
+                painter=painterResource(R.drawable.ic_launcher),
+                contentDescription="CaseOpener",
+                modifier=Modifier.size(90.dp).clip(RoundedCornerShape(25.dp))
+            )
+            Spacer(Modifier.height(15.dp))
+            Text("CASEOPENER",fontSize=27.sp,fontWeight=FontWeight.Black,color=Color.White)
+            Text("NEW 2.0",fontSize=16.sp,fontWeight=FontWeight.Bold,color=Violet)
+            Spacer(Modifier.height(30.dp))
+            Card(
+                modifier=Modifier.widthIn(max=470.dp).fillMaxWidth(),
+                colors=CardDefaults.cardColors(containerColor=CardColor),
+                shape=RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    Modifier.padding(20.dp),
+                    verticalArrangement=Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(if(registration) "Создать аккаунт" else "Войти в игру",
+                        fontSize=23.sp,fontWeight=FontWeight.Black)
+                    Text("Весь прогресс хранится в аккаунте. Войди, чтобы открывать кейсы и собирать скины.",
+                        fontSize=13.sp,color=SecondaryText)
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected=!registration,onClick={registration=false},
+                            label={Text("Вход")})
+                        FilterChip(selected=registration,onClick={registration=true},
+                            label={Text("Регистрация")})
+                    }
+                    OutlinedTextField(
+                        value=username,onValueChange={username=it.take(24)},
+                        label={Text("Логин")},
+                        singleLine=true,modifier=Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value=password,onValueChange={password=it.take(128)},
+                        label={Text("Пароль")},
+                        singleLine=true,visualTransformation=PasswordVisualTransformation(),
+                        modifier=Modifier.fillMaxWidth()
+                    )
+                    if (client.error!=null) {
+                        Text(client.error.orEmpty(),color=Danger,fontSize=13.sp)
+                    }
+                    Button(
+                        enabled=!client.busy && username.trim().length in 3..24 && password.length>=8,
+                        onClick={scope.launch {client.authenticate(registration,username,password)}},
+                        modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),
+                        shape=RoundedCornerShape(15.dp)
+                    ) {
+                        Text(if(client.busy) "Подключение…" else if(registration) "Зарегистрироваться" else "Войти",
+                            fontWeight=FontWeight.Bold)
+                    }
+                    Text("Вход обязателен для игры. Используй тестовый пароль до включения защищённого HTTPS-соединения.",
+                        fontSize=11.sp,color=Gold)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun ConnectScreen(status:String,message:String?,onRetry:()->Unit,onLogout:()->Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(26.dp),
+        verticalArrangement=Arrangement.Center,
+        horizontalAlignment=Alignment.CenterHorizontally
+    ) {
+        CircularProgressIndicator(color=Violet)
+        Spacer(Modifier.height(22.dp))
+        Text(status,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+        Text("Подключаемся к твоему аккаунту и загружаем коллекцию",
+            color=SecondaryText,textAlign=TextAlign.Center,fontSize=13.sp)
+        if(message!=null) {
+            Spacer(Modifier.height(10.dp))
+            Text(message,color=Danger,fontSize=13.sp,textAlign=TextAlign.Center)
+        }
+        Spacer(Modifier.height(15.dp))
+        OutlinedButton(onClick=onRetry) {Text("Повторить подключение")}
+        TextButton(onClick=onLogout) {Text("Выйти из аккаунта")}
+    }
+}
+
+@Composable
+private fun GameHeader(client: GameClient, padding: androidx.compose.ui.unit.Dp, onProfile:()->Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = pad, vertical = if (compact) 10.dp else 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        Modifier.fillMaxWidth().padding(horizontal=padding,vertical=11.dp),
+        verticalAlignment=Alignment.CenterVertically
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_launcher),
-            contentDescription = "Иконка CaseOpener",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(if (compact) 42.dp else 56.dp)
-                .clip(RoundedCornerShape(15.dp))
+            painter=painterResource(R.drawable.ic_launcher),
+            contentDescription="Логотип",
+            modifier=Modifier.size(43.dp).clip(RoundedCornerShape(12.dp))
         )
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                "CASEOPENER", color = Color.White, fontWeight = FontWeight.Black,
-                fontSize = if (compact) 17.sp else 24.sp, maxLines = 1
-            )
-            Text(
-                "NEW 2.0  •  v" + BuildConfig.VERSION_NAME,
-                color = Accent, fontSize = if (compact) 10.sp else 12.sp, maxLines = 1
-            )
+            Text("CASEOPENER",fontSize=20.sp,fontWeight=FontWeight.Black,
+                color=Color.White,maxLines=1)
+            Text("NEW 2.0  •  v"+BuildConfig.VERSION_NAME,
+                fontSize=10.sp,color=Violet)
         }
-        Column(
-            Modifier.clip(RoundedCornerShape(15.dp))
-                .background(Panel).padding(horizontal = if (compact) 9.dp else 14.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.End
+        Surface(
+            shape=RoundedCornerShape(12.dp),color=CardColor,
+            modifier=Modifier.clickable(onClick=onProfile)
         ) {
-            Text(if (onlineMode) "РЕЖИМ" else "БАЛАНС", color = Muted, fontSize = 9.sp)
-            Text(
-                if (onlineMode) "☁ Онлайн" else "🪙 $balance", color = Gold,
-                fontWeight = FontWeight.Bold, fontSize = if (compact) 15.sp else 20.sp,
-                maxLines = 1
-            )
+            Text("🪙 ${client.state?.balance ?: 0}",
+                modifier=Modifier.padding(horizontal=12.dp,vertical=10.dp),
+                fontWeight=FontWeight.Bold,color=Gold,maxLines=1)
         }
     }
 }
 
 @Composable
-private fun NavigationTabs(
-    selectedTab: Int,
-    compact: Boolean,
-    padding: androidx.compose.ui.unit.Dp,
-    onTabClick: (Int) -> Unit
-) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = padding)
-            .clip(RoundedCornerShape(19.dp))
-            .background(Panel).padding(5.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+private fun GameNavigation(destination:String,padding: androidx.compose.ui.unit.Dp,onNavigate:(String)->Unit) {
+    NavigationBar(
+        containerColor=CardColor,
+        modifier=Modifier.fillMaxWidth().heightIn(min=62.dp)
     ) {
-        listOf("Кейсы", "Инвентарь", "Профиль").forEachIndexed { index, label ->
-            val selected = selectedTab == index
-            Button(
-                onClick = { onTabClick(index) },
-                modifier = Modifier.weight(1f).heightIn(min = 44.dp),
-                shape = RoundedCornerShape(15.dp),
-                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 7.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (selected) Accent else Color.Transparent,
-                    contentColor = if (selected) Bg else Muted
-                ),
-                elevation = null
-            ) {
-                Text(label, fontSize = if (compact) 11.sp else 13.sp, maxLines = 1,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-            }
+        val tabs=listOf(
+            Triple("home","⌂","Главная"),
+            Triple("cases","▣","Кейсы"),
+            Triple("inventory","◆","Инвентарь"),
+            Triple("profile","♙","Профиль")
+        )
+        tabs.forEach { (key,icon,label)->
+            NavigationBarItem(
+                selected=destination==key || (destination=="detail"&&key=="cases"),
+                onClick={onNavigate(key)},
+                icon={Text(icon,fontSize=21.sp,fontWeight=FontWeight.Bold)},
+                label={Text(label,fontSize=10.sp,maxLines=1)},
+                alwaysShowLabel=true,
+                colors=NavigationBarItemDefaults.colors(
+                    selectedIconColor=Background,selectedTextColor=Violet,
+                    indicatorColor=Violet,unselectedIconColor=SecondaryText,
+                    unselectedTextColor=SecondaryText
+                )
+            )
         }
     }
 }
 
 @Composable
-private fun WhatsNewDialog(onDismiss: () -> Unit) {
-    val version = BuildConfig.VERSION_NAME
-    val notes = releaseNotesByVersion[version]
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(26.dp),
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("✨ Что нового?", fontWeight = FontWeight.Black, color = Color.White, fontSize = 22.sp)
-                Text("ОБНОВЛЕНИЕ  v$version", color = Accent,
-                    fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        },
-        text = {
-            Column(
-                Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (notes == null) {
-                    Text("Для версии $version список изменений пока не опубликован.", color = Muted)
-                } else {
-                    Text("✦ ДОБАВЛЕНО", fontWeight = FontWeight.Bold, color = Accent)
-                    notes.added.forEach { Text("• $it", color = Color.White, fontSize = 14.sp) }
-                    Spacer(Modifier.height(7.dp))
-                    Text("✦ УЛУЧШЕНО", fontWeight = FontWeight.Bold, color = Gold)
-                    notes.improved.forEach { Text("• $it", color = Color.White, fontSize = 14.sp) }
-                }
-            }
-        },
-        confirmButton = { Button(onClick = onDismiss) { Text("Понятно") } },
-        containerColor = Panel,
-        titleContentColor = Color.White
-    )
-}
-
-@Composable
-private fun CaseScreen(
-    modifier: Modifier,
-    wide: Boolean,
-    compact: Boolean,
-    padding: androidx.compose.ui.unit.Dp,
-    balance: Int,
-    chosen: CaseInfo?,
-    winning: Prize?,
-    opening: Boolean,
-    onSelect: (CaseInfo) -> Unit,
-    onOpen: () -> Unit
-) {
-    if (wide) {
-        Row(
-            modifier.fillMaxWidth().padding(horizontal = padding, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            LazyColumn(
-                Modifier.weight(1f).fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                item { SectionIntro() }
-                items(cases) { info ->
-                    CaseTile(info, selected = info == chosen, compact = false, enabled = !opening, onSelect = { onSelect(info) })
-                }
-            }
-            Column(
-                Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())
-            ) {
-                if (chosen == null) EmptySelection()
-                else OpeningPanel(chosen, winning, opening, balance, onOpen)
-            }
-        }
+private fun Artwork(imageUrl:String,emoji:String,modifier:Modifier=Modifier) {
+    val uri=mediaUrl(imageUrl)
+    if(uri==null) {
+        Box(
+            modifier.clip(RoundedCornerShape(17.dp)).background(
+                Brush.verticalGradient(listOf(Color(0xFF502174),Color(0xFF1D102D)))
+            ),
+            contentAlignment=Alignment.Center
+        ) { Text(emoji,fontSize=53.sp) }
     } else {
-        LazyColumn(
-            modifier.fillMaxWidth().padding(horizontal = padding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp)
-        ) {
-            item { SectionIntro() }
-            if (chosen != null) {
-                item { OpeningPanel(chosen, winning, opening, balance, onOpen) }
-            }
-            items(cases) { info ->
-                CaseTile(info, selected = info == chosen, compact = compact, enabled = !opening, onSelect = { onSelect(info) })
-            }
-        }
+        AsyncImage(
+            model=uri,
+            contentDescription=null,
+            modifier=modifier.clip(RoundedCornerShape(17.dp))
+                .background(Color(0xFF39204E)),
+            contentScale=ContentScale.Crop
+        )
     }
 }
 
 @Composable
-private fun SectionIntro() {
-    Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF361653), Color(0xFF21132E))))
-            .padding(18.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("ТВОЯ КОЛЛЕКЦИЯ НАЧИНАЕТСЯ ЗДЕСЬ",
-                    fontSize = 15.sp, fontWeight = FontWeight.Black, color = Color.White)
-                Spacer(Modifier.height(6.dp))
-                Text("Открывай кейсы. Находи редкие предметы. Собирай легенды.",
-                    fontSize = 12.sp, color = Muted)
-            }
-            Spacer(Modifier.width(8.dp))
-            Text("✦", fontSize = 38.sp, color = Accent)
-        }
-    }
-}
-
-@Composable
-private fun EmptySelection() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Panel),
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Column(
-            Modifier.fillMaxWidth().padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("🎁", fontSize = 54.sp)
-            Spacer(Modifier.height(12.dp))
-            Text("Выбери кейс слева", fontWeight = FontWeight.Bold, color = Color.White)
-            Text("Здесь появится открытие и полученная награда",
-                fontSize = 13.sp, color = Muted, textAlign = TextAlign.Center)
-        }
-    }
-}
-
-@Composable
-private fun CaseTile(
-    info: CaseInfo,
-    selected: Boolean,
-    compact: Boolean,
-    enabled: Boolean,
-    onSelect: () -> Unit
+private fun HomeScreen(
+    client: GameClient,modifier:Modifier,padding: androidx.compose.ui.unit.Dp,
+    onCases:()->Unit,onCase:(String)->Unit,onNotes:()->Unit
 ) {
+    LazyColumn(
+        modifier.fillMaxWidth().padding(horizontal=padding),
+        verticalArrangement=Arrangement.spacedBy(15.dp),
+        contentPadding=PaddingValues(bottom=20.dp,top=8.dp)
+    ) {
+        item {
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(23.dp))
+                    .background(Brush.horizontalGradient(listOf(
+                        Color(0xFF46216A),Color(0xFF251333))))
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("ТВОЯ КОЛЛЕКЦИЯ",color=Color.White,fontWeight=FontWeight.Black,fontSize=24.sp)
+                    Text("Открывай кейсы, собирай редкие скины и находи легендарные награды.",
+                        color=SecondaryText,fontSize=13.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick=onCases,shape=RoundedCornerShape(14.dp)) {
+                        Text("Смотреть кейсы",fontWeight=FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        item {
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
+                verticalAlignment=Alignment.CenterVertically) {
+                Text("ПОПУЛЯРНЫЕ КЕЙСЫ",fontWeight=FontWeight.Black,fontSize=17.sp)
+                TextButton(onClick=onCases) {Text("Все")}
+            }
+        }
+        if(client.cases.isEmpty()) item { Text("Пока нет доступных кейсов",color=SecondaryText) }
+        items(client.cases.take(4),key={it.id}) { gameCase->
+            CaseListTile(gameCase,onClick={onCase(gameCase.id)})
+        }
+        item {
+            OutlinedButton(onClick=onNotes,modifier=Modifier.fillMaxWidth(),
+                shape=RoundedCornerShape(14.dp)) {
+                Text("Что нового в версии "+BuildConfig.VERSION_NAME+"?")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CaseListTile(gameCase:GameCase,onClick:()->Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth()
-            .then(if (selected) Modifier.border(1.dp, Accent, RoundedCornerShape(18.dp)) else Modifier),
-        colors = CardDefaults.cardColors(containerColor = if (selected) Color(0xFF2A1A42) else Panel),
-        shape = RoundedCornerShape(18.dp)
+        modifier=Modifier.fillMaxWidth().clickable(onClick=onClick),
+        shape=RoundedCornerShape(20.dp),
+        colors=CardDefaults.cardColors(containerColor=CardColor)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(if (compact) 11.dp else 15.dp),
-            verticalAlignment = Alignment.CenterVertically
+            Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment=Alignment.CenterVertically
         ) {
-            Box(
-                Modifier.size(if (compact) 54.dp else 65.dp)
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(Brush.verticalGradient(listOf(Color(0xFF472268), Color(0xFF1B102E)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(info.emoji, fontSize = if (compact) 32.sp else 38.sp)
-            }
-            Spacer(Modifier.width(if (compact) 9.dp else 14.dp))
+            Artwork(gameCase.imageUrl,gameCase.emoji,Modifier.size(87.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(info.name, fontSize = if (compact) 16.sp else 19.sp, fontWeight = FontWeight.Black)
-                Text(info.subtitle, fontSize = 11.sp, color = Muted, maxLines = 2)
-                Spacer(Modifier.height(4.dp))
-                Text("${info.cost} 🪙", color = Gold, fontWeight = FontWeight.Bold)
+                Text(gameCase.name,fontWeight=FontWeight.Black,fontSize=17.sp,
+                    maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(gameCase.subtitle,color=SecondaryText,fontSize=11.sp,maxLines=2)
+                Spacer(Modifier.height(6.dp))
+                Text("${gameCase.cost} 🪙",color=Gold,fontWeight=FontWeight.Bold)
             }
-            Spacer(Modifier.width(5.dp))
-            Button(
-                enabled = enabled,
-                onClick = onSelect,
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = if (compact) 8.dp else 12.dp),
-                modifier = Modifier.heightIn(min = 44.dp)
-            ) {
-                Text(if (selected) "ВЫБРАН" else "ВЫБРАТЬ", fontSize = if (compact) 10.sp else 11.sp)
-            }
+            Text("›",color=Violet,fontSize=29.sp)
         }
     }
 }
 
 @Composable
-private fun OpeningPanel(
-    choice: CaseInfo,
-    prize: Prize?,
-    opening: Boolean,
-    balance: Int,
-    onOpen: () -> Unit
-) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Panel),
-        shape = RoundedCornerShape(22.dp)
-    ) {
-        Column(
-            Modifier.fillMaxWidth().padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                Modifier.fillMaxWidth().heightIn(min = 140.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Brush.verticalGradient(listOf(Color(0xFF4A216D), Color(0xFF1A102B)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(if (opening) "✨" else prize?.emoji ?: choice.emoji, fontSize = 76.sp)
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                if (opening) "Открываем кейс…" else prize?.name ?: choice.name,
-                fontSize = 21.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center,
-                color = if (opening) Color.White else prize?.color ?: Color.White
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                if (opening) "Удача уже определила награду…" else prize?.let { "${it.rarity} • ${it.value} монет" }
-                    ?: "Стоимость: ${choice.cost} монет",
-                color = Muted, textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(18.dp))
-            Button(
-                enabled = !opening && balance >= choice.cost,
-                onClick = onOpen,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(if (opening) "ОТКРЫТИЕ…" else "ОТКРЫТЬ ЗА ${choice.cost} 🪙",
-                    fontWeight = FontWeight.Bold)
-            }
-            if (!opening && balance < choice.cost) {
-                Spacer(Modifier.height(8.dp))
-                Text("Не хватает монет — продай предметы в инвентаре.",
-                    color = Gold, fontSize = 12.sp, textAlign = TextAlign.Center)
-            }
-        }
-    }
-}
-
-@Composable
-private fun InventoryScreen(
-    modifier: Modifier,
-    padding: androidx.compose.ui.unit.Dp,
-    wide: Boolean,
-    inventory: List<Prize>,
-    onSell: (Prize) -> Unit
-) {
+private fun CasesScreen(cases:List<GameCase>,modifier:Modifier,
+                        padding: androidx.compose.ui.unit.Dp,onCase:(String)->Unit) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = if (wide) 280.dp else 320.dp),
-        modifier = modifier.fillMaxWidth().padding(horizontal = padding),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp)
+        columns=GridCells.Adaptive(minSize=170.dp),
+        modifier=modifier.fillMaxWidth().padding(horizontal=padding),
+        horizontalArrangement=Arrangement.spacedBy(12.dp),
+        verticalArrangement=Arrangement.spacedBy(12.dp),
+        contentPadding=PaddingValues(top=10.dp,bottom=20.dp)
     ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
+        item(span={GridItemSpan(maxLineSpan)}) {
             Column {
-                Text("ИНВЕНТАРЬ • ${inventory.size} ПРЕДМЕТОВ",
-                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("Продавай предметы, чтобы открывать новые кейсы.",
-                    fontSize = 12.sp, color = Muted)
+                Text("КЕЙСЫ",fontSize=22.sp,fontWeight=FontWeight.Black)
+                Text("Выбери кейс и посмотри все возможные награды",color=SecondaryText,fontSize=12.sp)
             }
         }
-        if (inventory.isEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text("Здесь пока пусто. Открой свой первый кейс!",
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                    textAlign = TextAlign.Center, color = Muted)
+        items(cases,key={it.id}) { gameCase ->
+            Card(
+                colors=CardDefaults.cardColors(containerColor=CardColor),
+                shape=RoundedCornerShape(19.dp),
+                modifier=Modifier.fillMaxWidth().clickable { onCase(gameCase.id) }
+            ) {
+                Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                    Artwork(gameCase.imageUrl,gameCase.emoji,
+                        Modifier.fillMaxWidth().height(135.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text(gameCase.name,fontWeight=FontWeight.Black,fontSize=17.sp,
+                        maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text(gameCase.subtitle,fontSize=11.sp,color=SecondaryText,
+                        maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text("${gameCase.cost} 🪙",fontWeight=FontWeight.Bold,color=Gold)
+                }
             }
-        } else {
-            items(inventory.size) { index ->
-                val prize = inventory[index]
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Panel),
-                    shape = RoundedCornerShape(18.dp)
+        }
+        if(cases.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
+            Text("Доступных кейсов пока нет",color=SecondaryText)
+        }
+    }
+}
+
+@Composable
+private fun CaseDetailScreen(
+    gameCase:GameCase,client:GameClient,modifier:Modifier,
+    padding: androidx.compose.ui.unit.Dp,onBack:()->Unit
+) {
+    val total=gameCase.skins.sumOf {it.weight}.coerceAtLeast(1)
+    LazyVerticalGrid(
+        columns=GridCells.Adaptive(minSize=145.dp),
+        modifier=modifier.fillMaxWidth().padding(horizontal=padding),
+        horizontalArrangement=Arrangement.spacedBy(10.dp),
+        verticalArrangement=Arrangement.spacedBy(10.dp),
+        contentPadding=PaddingValues(top=5.dp,bottom=28.dp)
+    ) {
+        item(span={GridItemSpan(maxLineSpan)}) {
+            Column(Modifier.fillMaxWidth()) {
+                TextButton(onClick=onBack) {Text("‹  Назад к кейсам")}
+                Artwork(gameCase.imageUrl,gameCase.emoji,
+                    Modifier.fillMaxWidth().height(190.dp))
+                Spacer(Modifier.height(13.dp))
+                Text(gameCase.name,fontSize=25.sp,fontWeight=FontWeight.Black)
+                Text(gameCase.subtitle,color=SecondaryText,fontSize=13.sp)
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick={client.openCase(gameCase.id)},
+                    enabled=client.status=="Онлайн" && !client.opening && !client.selling &&
+                            client.state!=null && client.state!!.balance>=gameCase.cost &&
+                            gameCase.skins.isNotEmpty(),
+                    modifier=Modifier.fillMaxWidth().heightIn(min=53.dp),
+                    shape=RoundedCornerShape(15.dp)
                 ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(11.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(prize.emoji, fontSize = 28.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(prize.name, fontWeight = FontWeight.Bold,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 13.sp)
-                            Text(prize.rarity, color = prize.color, fontSize = 11.sp)
-                        }
-                        Spacer(Modifier.width(5.dp))
-                        Button(
-                            onClick = { onSell(prize) },
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier.heightIn(min = 42.dp)
+                    Text(if(client.opening) "Открываем…" else "ОТКРЫТЬ ЗА ${gameCase.cost} 🪙",
+                        fontWeight=FontWeight.Black)
+                }
+                if(client.state!=null && client.state!!.balance<gameCase.cost) {
+                    Text("Недостаточно монет",color=Gold,fontSize=12.sp,
+                        modifier=Modifier.padding(top=6.dp))
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("ВОЗМОЖНЫЕ НАГРАДЫ",fontSize=17.sp,fontWeight=FontWeight.Black)
+                Text("Шансы указаны для каждого скина",fontSize=12.sp,color=SecondaryText)
+            }
+        }
+        items(gameCase.skins,key={it.id}) { skin ->
+            Card(
+                modifier=Modifier.fillMaxWidth(),
+                colors=CardDefaults.cardColors(containerColor=CardColor),
+                shape=RoundedCornerShape(15.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                    Artwork(skin.imageUrl,skin.emoji,Modifier.fillMaxWidth().height(99.dp))
+                    Spacer(Modifier.height(7.dp))
+                    Text(skin.name,fontWeight=FontWeight.Bold,maxLines=2,
+                        fontSize=12.sp,overflow=TextOverflow.Ellipsis,
+                        minLines=2)
+                    Text(skin.rarity,fontSize=11.sp,color=rarityTint(skin.rarity))
+                    Text("${skin.value} 🪙",fontSize=12.sp,color=Gold)
+                    Text("%.2f%%".format(java.util.Locale.US,skin.weight * 100.0 / total),
+                        fontSize=11.sp,color=SecondaryText)
+                }
+            }
+        }
+        if(gameCase.skins.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
+            Text("В кейсе пока нет доступных предметов",color=SecondaryText)
+        }
+    }
+}
+
+private fun rarityTint(rarity:String):Color=when(rarity) {
+    "Легендарный"->Gold
+    "Мифический"->Color(0xFFFF82B5)
+    "Эпический"->Violet
+    "Редкий"->Color(0xFF71B8FF)
+    else->SecondaryText
+}
+
+@Composable
+private fun RouletteDialog(reward:OwnedSkin,caseInfo:GameCase?,onDone:()->Unit) {
+    val pool=caseInfo?.skins.orEmpty()
+    val row=remember(reward.id) {
+        val choices=if(pool.isEmpty()) listOf(
+            GameSkin("other","Награда","Редкий",1,1,"✦","")
+        ) else pool
+        val filler=List(36){choices[Random.nextInt(choices.size)]}
+        val result=GameSkin("won",reward.name,reward.rarity,reward.value,1,
+            reward.emoji,reward.imageUrl)
+        filler+result+List(3){choices[Random.nextInt(choices.size)]}
+    }
+    val listState=rememberLazyListState()
+    var rolling by remember(reward.id) { mutableStateOf(true) }
+    LaunchedEffect(reward.id) {
+        // The prize is generated on the server before the animation begins.
+        for (index in 0..35) {
+            listState.scrollToItem(index)
+            delay(22L + (index*index/11).toLong())
+        }
+        rolling=false
+    }
+    Dialog(onDismissRequest={if(!rolling)onDone()}) {
+        Card(
+            modifier=Modifier.fillMaxWidth(),
+            shape=RoundedCornerShape(24.dp),
+            colors=CardDefaults.cardColors(containerColor=CardColor)
+        ) {
+            Column(Modifier.padding(vertical=20.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text(if(rolling) "ОТКРЫТИЕ КЕЙСА" else "ТВОЯ НАГРАДА!",
+                    color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Black)
+                Spacer(Modifier.height(8.dp))
+                Text("▼",color=Gold,fontSize=24.sp)
+                LazyRow(
+                    state=listState,
+                    userScrollEnabled=false,
+                    modifier=Modifier.fillMaxWidth().height(141.dp),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp),
+                    contentPadding=PaddingValues(horizontal=12.dp)
+                ) {
+                    items(row.size) { index ->
+                        val skin=row[index]
+                        Card(
+                            modifier=Modifier.width(119.dp).fillMaxHeight(),
+                            colors=CardDefaults.cardColors(containerColor=
+                                if(index==36)Color(0xFF43255C) else Color(0xFF2A1B3A)),
+                            shape=RoundedCornerShape(12.dp)
                         ) {
-                            Text("+${prize.value} 🪙", fontSize = 11.sp, maxLines = 1)
+                            Column(Modifier.padding(7.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                                Artwork(skin.imageUrl,skin.emoji,Modifier.size(83.dp))
+                                Text(skin.name,fontSize=10.sp,maxLines=2,
+                                    color=Color.White,textAlign=TextAlign.Center)
+                            }
                         }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                if(rolling) {
+                    CircularProgressIndicator(color=Violet,modifier=Modifier.size(26.dp))
+                    Text("Рулетка вращается…",color=SecondaryText,fontSize=12.sp)
+                } else {
+                    Text(reward.name,fontSize=17.sp,color=rarityTint(reward.rarity),
+                        fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                    Text("${reward.rarity}  •  ${reward.value} 🪙",
+                        color=Gold,fontSize=13.sp)
+                    Spacer(Modifier.height(15.dp))
+                    Button(onClick=onDone,shape=RoundedCornerShape(14.dp)) {
+                        Text("ЗАБРАТЬ НАГРАДУ",fontWeight=FontWeight.Black)
                     }
                 }
             }
@@ -748,63 +609,129 @@ private fun InventoryScreen(
 }
 
 @Composable
-private fun ProfileScreen(
-    modifier: Modifier,
-    padding: androidx.compose.ui.unit.Dp,
-    balance: Int,
-    openings: Int,
-    inventory: List<Prize>,
-    onBackup: () -> Unit,
-    onRestore: () -> Unit
-) {
-    Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-            .padding(horizontal = padding, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+private fun InventoryScreen(client:GameClient,modifier:Modifier,
+                            padding: androidx.compose.ui.unit.Dp,wide:Boolean) {
+    val inventory=client.state?.inventory.orEmpty()
+    LazyVerticalGrid(
+        columns=GridCells.Adaptive(minSize=if(wide)260.dp else 315.dp),
+        modifier=modifier.fillMaxWidth().padding(horizontal=padding),
+        horizontalArrangement=Arrangement.spacedBy(10.dp),
+        verticalArrangement=Arrangement.spacedBy(10.dp),
+        contentPadding=PaddingValues(top=10.dp,bottom=20.dp)
     ) {
-        Column(Modifier.fillMaxWidth().widthIn(max = 660.dp)) {
-            Text("МОЙ ПРОФИЛЬ", fontWeight = FontWeight.Black, fontSize = 21.sp)
-            Spacer(Modifier.height(12.dp))
-            Card(colors = CardDefaults.cardColors(containerColor = Panel),
-                shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ProfileStatistic("🎯  Открыто кейсов", openings.toString())
-                    HorizontalDivider(color = Color(0xFF3A294C))
-                    ProfileStatistic("🎒  Предметов", inventory.size.toString())
-                    HorizontalDivider(color = Color(0xFF3A294C))
-                    ProfileStatistic("🪙  Баланс", balance.toString())
-                    HorizontalDivider(color = Color(0xFF3A294C))
-                    ProfileStatistic("💎  Стоимость инвентаря", inventory.sumOf { it.value }.toString())
+        item(span={GridItemSpan(maxLineSpan)}) {
+            Column {
+                Text("ИНВЕНТАРЬ",fontWeight=FontWeight.Black,fontSize=22.sp)
+                Text("${inventory.size} предметов в твоей коллекции",color=SecondaryText,fontSize=12.sp)
+            }
+        }
+        items(inventory,key={it.id}) { item ->
+            Card(
+                colors=CardDefaults.cardColors(containerColor=CardColor),
+                shape=RoundedCornerShape(17.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(11.dp),
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Artwork(item.imageUrl,item.emoji,Modifier.size(64.dp))
+                    Spacer(Modifier.width(11.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(item.name,fontWeight=FontWeight.Bold,fontSize=13.sp,
+                            maxLines=2,overflow=TextOverflow.Ellipsis)
+                        Text(item.rarity,fontSize=11.sp,color=rarityTint(item.rarity))
+                        Text("${item.value} 🪙",fontSize=12.sp,color=Gold)
+                    }
+                    OutlinedButton(
+                        onClick={client.sellItem(item)},
+                        enabled=client.status=="Онлайн" && !client.selling && !client.opening,
+                        contentPadding=PaddingValues(horizontal=9.dp)
+                    ) {Text("Продать",fontSize=11.sp)}
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            Text("СОХРАНЕНИЕ ПРОГРЕССА", fontWeight = FontWeight.Bold, color = Accent)
-            Spacer(Modifier.height(5.dp))
-            Text("Монеты, предметы и статистика сохраняются автоматически. Можно создать резервную копию для переноса или восстановления.",
-                color = Muted, fontSize = 12.sp)
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = onBackup, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("⬇  Сохранить прогресс", fontWeight = FontWeight.Bold) }
-            OutlinedButton(
-                onClick = onRestore, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("⬆  Восстановить из файла", fontWeight = FontWeight.Bold) }
-            Spacer(Modifier.height(15.dp))
-            Text("Версия " + BuildConfig.VERSION_NAME + "  •  Офлайн",
-                color = Muted, fontSize = 12.sp)
+        }
+        if(inventory.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
+            Box(Modifier.fillMaxWidth().padding(vertical=50.dp),contentAlignment=Alignment.Center) {
+                Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                    Text("✦",fontSize=50.sp,color=Violet)
+                    Text("Пока нет скинов",color=SecondaryText)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ProfileStatistic(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Muted, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Spacer(Modifier.width(12.dp))
-        Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+private fun ProfileScreen(client:GameClient,modifier:Modifier,
+                          padding: androidx.compose.ui.unit.Dp,onLogout:()->Unit) {
+    val profile=client.state ?: return
+    Column(
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            .padding(horizontal=padding,vertical=10.dp),
+        horizontalAlignment=Alignment.CenterHorizontally
+    ) {
+        Column(Modifier.fillMaxWidth().widthIn(max=680.dp)) {
+            Text("МОЙ ПРОФИЛЬ",fontSize=23.sp,fontWeight=FontWeight.Black)
+            Spacer(Modifier.height(14.dp))
+            Card(
+                colors=CardDefaults.cardColors(containerColor=CardColor),
+                shape=RoundedCornerShape(22.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(21.dp),
+                    verticalArrangement=Arrangement.spacedBy(17.dp)) {
+                    Text("👤 ${profile.username}",fontSize=21.sp,fontWeight=FontWeight.Black)
+                    HorizontalDivider(color=Color(0xFF392449))
+                    ProfileLine("🪙 Монеты",profile.balance.toString())
+                    ProfileLine("🎯 Открыто кейсов",profile.openings.toString())
+                    ProfileLine("◆ Скины",profile.inventory.size.toString())
+                    Text("☁ Прогресс сохраняется автоматически",fontSize=12.sp,color=Violet)
+                }
+            }
+            Spacer(Modifier.height(15.dp))
+            OutlinedButton(
+                onClick=onLogout,
+                modifier=Modifier.fillMaxWidth().heightIn(min=51.dp),
+                shape=RoundedCornerShape(14.dp)
+            ) {Text("Выйти из аккаунта")}
+            Spacer(Modifier.height(16.dp))
+            Text("CaseOpener New 2.0 • версия "+BuildConfig.VERSION_NAME,
+                color=SecondaryText,fontSize=12.sp)
+        }
     }
+}
+
+@Composable
+private fun ProfileLine(label:String,value:String) {
+    Row(Modifier.fillMaxWidth(),
+        verticalAlignment=Alignment.CenterVertically,
+        horizontalArrangement=Arrangement.SpaceBetween) {
+        Text(label,color=SecondaryText,fontSize=14.sp)
+        Text(value,color=Color.White,fontWeight=FontWeight.Bold,fontSize=16.sp)
+    }
+}
+
+@Composable
+private fun ReleaseNotesDialog(onDismiss:()->Unit) {
+    AlertDialog(
+        onDismissRequest=onDismiss,
+        containerColor=CardColor,
+        shape=RoundedCornerShape(25.dp),
+        title={
+            Column {
+                Text("Что нового?",fontWeight=FontWeight.Black)
+                Text("Версия "+BuildConfig.VERSION_NAME,color=Violet,fontSize=12.sp)
+            }
+        },
+        text={
+            Column(Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text("ДОБАВЛЕНО",fontWeight=FontWeight.Bold,color=Violet)
+                Text("• Полноценная онлайн-игра с обязательным входом в аккаунт.")
+                Text("• Отдельные экраны главной, кейсов, инвентаря и профиля.")
+                Text("• Просмотр скинов внутри кейса и анимация рулетки.")
+                Text("УЛУЧШЕНО",fontWeight=FontWeight.Bold,color=Gold)
+                Text("• Кейсы и изображения обновляются прямо во время игры.")
+                Text("• Награды и прогресс сохраняются автоматически.")
+            }
+        },
+        confirmButton={Button(onClick=onDismiss){Text("Понятно")}}
+    )
 }
