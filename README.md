@@ -2,7 +2,7 @@
 
 Native Kotlin + Jetpack Compose Android case opener. Only virtual currency and fictional prizes.
 
-**Current version: 0.0.002**. Versioning starts from **0.0.001**. The first debug APK was technically called 0.1.0 before adopting this scheme.
+**Current version: 0.0.003**. Versioning starts from **0.0.001**. The first debug APK was technically called 0.1.0 before adopting this scheme.
 
 ## Install APK
 
@@ -24,3 +24,13 @@ Update `appVersionName` and `appVersionCode` in `gradle.properties` for each new
 Every push to `main` builds a debug APK with GitHub Actions and creates/updates the corresponding versioned GitHub Release.
 
 Local build: JDK 17, Android SDK 35, Gradle 8.9; `gradle :app:assembleDebug`.
+
+## Player-facing release notes policy
+
+Only describe things players can see or use in the game's "Что нового?" window, `RELEASE_NOTES.md`, and public changelog. Do **not** list internal GitHub Actions, build tools, CI, Gradle, admin panels, signing, or APK publication as gameplay changes. Use short sections "Добавлено" and "Улучшено" for the CURRENT version only.
+
+## Updating & data integrity
+
+Android application ID remains `com.caseopener.newtwo` and versionCode increases. All debug versions starting with v0.0.003 are signed with the same stable DEVELOPMENT-only test signing certificate, stored in `signing/caseopener-test.jks`. NEVER use this public development key for a production app; migrate to a securely stored release signing key before distributing a production release.
+
+The original v0.0.001/v0.0.002 APKs were signed using ephemeral CI debug keys, so an in-place update from those builds cannot be guaranteed. Never tell users to uninstall the old app if they need its stored progress. For newer builds, install the APK over the existing matching-package, matching-signature app, do not clear app data. In-app backup and restore uses Android's document picker, and the saved file contains local balance, items and statistics.

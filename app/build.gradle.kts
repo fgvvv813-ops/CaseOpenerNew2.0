@@ -16,7 +16,20 @@ android {
         versionName = providers.gradleProperty("appVersionName").get()
     }
 
-    buildTypes { release { isMinifyEnabled = false } }
+    // Stable test signing so subsequent Android updates retain app data.
+    // This key is FOR DEVELOPMENT ONLY; not a production release certificate.
+    signingConfigs {
+        create("stableDev") {
+            storeFile = rootProject.file("signing/caseopener-test.jks")
+            storePassword = "caseopener-test"
+            keyAlias = "caseopener-test"
+            keyPassword = "caseopener-test"
+        }
+    }
+    buildTypes {
+        getByName("debug") { signingConfig = signingConfigs.getByName("stableDev") }
+        getByName("release") { isMinifyEnabled = false }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
