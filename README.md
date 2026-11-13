@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.005.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.006.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -31,3 +31,11 @@ Bump `appVersionName` and `appVersionCode` in `gradle.properties` for new releas
 ## Android continuity
 
 The package ID remains `com.caseopener.newtwo` and debug APKs since 0.0.003 use the same *development-only* signing certificate. Android app updates should retain the encrypted online session when installed over the existing app. The old offline SharedPreferences are deliberately not used or imported; the online server data is preserved. NEVER use the public development signing key for a production release.
+
+## UI v0.0.006
+
+- New premium dark/neon visuals across login, home, case catalog, case preview, roulette, inventory and player profile.
+- Bundled image fallbacks for the starter cases from original CaseOpener artwork. Remote case/skin images from the server take precedence.
+- Search, live filters, 18-items-per-page inventory, sort order, rarity labels, player stats computed from real server records, recent owned skins, real logout and a local reduced-motion toggle.
+- No invented XP, payment options, skin listings, or other unsupported backend features. Level is derived from completed case openings (20 openings per level).
+- Stable applicationId, versionCode and testing signature retained.
