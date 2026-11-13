@@ -30,7 +30,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 // Replace with an HTTPS URL and remove cleartext permission before public release.
-const val SERVER_BASE = "http://48.102.160.0:40017"
+const val SERVER_BASE = "http://93.123.84.239:40017"
 
 data class GameSkin(
     val id: String, val name: String, val rarity: String,

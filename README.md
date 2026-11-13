@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.006.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.007.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -20,7 +20,7 @@ Native Android game written in Kotlin + Jetpack Compose.
 
 Download `server.py` and `requirements.txt` from the CaseOpener server distribution, or configure your deployment with the supplied files.
 
-The Android app currently uses `http://48.102.160.0:40017` (temporary testing only). Configure HTTPS/WSS before public registration to protect account passwords and sessions. The server **must run with ASGI**; Gunicorn's default sync WSGI worker does not support WebSockets. Example: `uvicorn server:app --host 0.0.0.0 --port 40017 --workers 1`.
+The Android app currently uses `http://93.123.84.239:40017` (temporary testing only). Configure HTTPS/WSS before public registration to protect account passwords and sessions. The server **must run with ASGI**; Gunicorn's default sync WSGI worker does not support WebSockets. Example: `uvicorn server:app --host 0.0.0.0 --port 40017 --workers 1`.
 
 Use a single worker for this SQLite + in-process WebSocket broadcast design. Multi-worker operation requires Redis pub/sub.
 

@@ -486,14 +486,8 @@ private fun UpdateInfo(onClose:()->Unit) {
                 Modifier.heightIn(max=330.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement=Arrangement.spacedBy(8.dp)
             ) {
-                Text("ДОБАВЛЕНО",color=NeonGold,fontWeight=FontWeight.Bold)
-                Text("• Полностью новый дизайн всех игровых экранов.")
-                Text("• Поиск и фильтры кейсов и инвентаря.")
-                Text("• Отображение уровня и прогресса игрока.")
                 Text("УЛУЧШЕНО",color=NeonViolet,fontWeight=FontWeight.Bold)
-                Text("• Более яркое оформление кейсов и наград.")
-                Text("• Удобнее навигация, профиль и анимация рулетки.")
-                Text("• Улучшена адаптация для разных размеров экранов.")
+                Text("• Обновлено подключение к игровому серверу.")
             }
         },
         confirmButton={GoldButton(text="ПОНЯТНО",onClick=onClose)}
