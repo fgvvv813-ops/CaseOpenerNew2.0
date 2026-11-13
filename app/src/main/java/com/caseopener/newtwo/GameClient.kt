@@ -140,7 +140,10 @@ private fun JSONArray?.asObjects(): List<JSONObject> {
 fun mediaUrl(path: String): String? {
     if (path.isBlank()) return null
     // Never render arbitrary external URLs from the catalog.
-    return if (path.startsWith("/api/v1/media/")) SERVER_BASE + path else null
+    // Only allow fixed image endpoints on our own API, never arbitrary URLs.
+    val localMedia = Regex("^/api/v1/media/[a-f0-9]{32}\\.(png|jpg|webp)$").matches(path)
+    val cs2Media = Regex("^/api/v1/cs2/image/[a-z][a-z0-9_]*-[A-Za-z0-9_-]{1,75}$").matches(path)
+    return if (localMedia || cs2Media) SERVER_BASE + path else null
 }
 
 private class SessionStore(context: Context) {

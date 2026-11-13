@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.008.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.009.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -35,7 +35,7 @@ The package ID remains `com.caseopener.newtwo` and debug APKs since 0.0.003 use 
 ## UI v0.0.006
 
 - New premium dark/neon visuals across login, home, case catalog, case preview, roulette, inventory and player profile.
-- Bundled image fallbacks for the starter cases from original CaseOpener artwork. Remote case/skin images from the server take precedence.
+- Case and skin artwork is server-controlled. No starter-case images are embedded in APK.
 - Search, live filters, 18-items-per-page inventory, sort order, rarity labels, player stats computed from real server records, recent owned skins, real logout and a local reduced-motion toggle.
 - No invented XP, payment options, skin listings, or other unsupported backend features. Level is derived from completed case openings (20 openings per level).
 - Stable applicationId, versionCode and testing signature retained.
@@ -51,3 +51,11 @@ The package ID remains `com.caseopener.newtwo` and debug APKs since 0.0.003 use 
 - The app shows unread chat counts outside the chat screen.
 - **Server upgrade required:** deploy the separately distributed v0.0.008 bot.py alongside the existing caseopener.db and media directory. Older server versions do not know chat commands.
 - **Never commit the private Telegram bot token to this public repository.**
+
+## CS2 item catalogue (v0.0.009)
+
+- The APK contains **no cases, skins or case artwork**. Everything comes from the authenticated FastAPI/WebSocket server. Neutral emoji placeholders show if the server has not provided an image.
+- Only own-server media URLs `/api/v1/media/{safe_id}` and `/api/v1/cs2/image/{cs2_id}` are rendered, not arbitrary image URLs from data.
+- CS2 catalogue: [skins JSON](data/cs2/skins.json), and additional item categories in `data/cs2/`.
+- The server has to be upgraded to version 0.0.009 to provide image proxy and Telegram catalog import. The APK's API base URL remains http://93.123.84.239:40017.
+- Backend protects SQLite under a private directory and validates API authentication, file names, image hostnames and payload sizes. TLS termination, server file permissions and reverse-proxy access controls are **still required** for production security.

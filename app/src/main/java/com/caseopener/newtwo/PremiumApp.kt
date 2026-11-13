@@ -512,13 +512,10 @@ private fun UpdateInfo(onClose:()->Unit) {
                 Modifier.heightIn(max=330.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement=Arrangement.spacedBy(8.dp)
             ) {
-                Text("ДОБАВЛЕНО",color=NeonGold,fontWeight=FontWeight.Bold)
-                Text("• Общий онлайн-чат с сообщениями от других игроков.")
-                Text("• Просмотр профилей игроков с лучшими наградами и датой регистрации.")
                 Text("УЛУЧШЕНО",color=NeonViolet,fontWeight=FontWeight.Bold)
-                Text("• Сообщения в реальном времени и история переписки.")
-                Text("• Ограничение 5 секунд между отправками и 3–350 символов.")
-                Text("• Уведомления о новых сообщениях.")
+                Text("• Кейсы и все предметы приходят только с игрового сервера.")
+                Text("• Поддерживаются изображения CS2-скинов.")
+                Text("• Изменения содержимого кейсов появляются автоматически.")
             }
         },
         confirmButton={GoldButton(text="ПОНЯТНО",onClick=onClose)}

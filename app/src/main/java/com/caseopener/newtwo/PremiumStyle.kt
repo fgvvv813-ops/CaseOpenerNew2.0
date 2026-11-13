@@ -144,24 +144,14 @@ internal fun GameArt(
         )
         return
     }
-    val fallback = when {
-        caseId.contains("street",ignoreCase=true) || caseId.contains("urban",ignoreCase=true) -> R.drawable.case_street
-        caseId.contains("neon",ignoreCase=true) || caseId.contains("pulse",ignoreCase=true) -> R.drawable.case_neon
-        caseId.contains("legend",ignoreCase=true) || caseId.contains("royal",ignoreCase=true) -> R.drawable.case_legend
-        else -> null
-    }
-    if (fallback != null) {
-        Image(painter=painterResource(fallback), contentDescription=null,
-            modifier=modifier.clip(RoundedCornerShape(16.dp)),
-            contentScale=ContentScale.Crop)
-    } else {
-        Box(
-            modifier.clip(RoundedCornerShape(16.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF4E1B77),Color(0xFF111638)))),
-            contentAlignment=Alignment.Center
-        ) {
-            Text(emoji, fontSize=52.sp, color=SoftWhite)
-        }
+    // The APK ships no case inventory or case artwork. The server owns all
+    // cases/skins, including their image URLs; emoji is a neutral placeholder.
+    Box(
+        modifier.clip(RoundedCornerShape(16.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF4E1B77),Color(0xFF111638)))),
+        contentAlignment=Alignment.Center
+    ) {
+        Text(emoji, fontSize=52.sp, color=SoftWhite)
     }
 }
 
