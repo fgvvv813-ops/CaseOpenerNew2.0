@@ -162,16 +162,18 @@ private class OnlineSession(context: Context) {
         }
     }
 
-    fun load(): String? = try {
-        val saved = prefs.getString("session", null) ?: return null
-        val bytes = Base64.decode(saved, Base64.NO_WRAP)
-        val iv = bytes.copyOfRange(0, 12)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
-        String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8)
-    } catch (_: Exception) {
-        clear()
-        null
+    fun load(): String? {
+        return try {
+            val saved = prefs.getString("session", null) ?: return null
+            val bytes = Base64.decode(saved, Base64.NO_WRAP)
+            val iv = bytes.copyOfRange(0, 12)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
+            String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8)
+        } catch (_: Exception) {
+            clear()
+            null
+        }
     }
 
     fun save(token: String) {
