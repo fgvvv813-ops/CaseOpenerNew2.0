@@ -226,7 +226,8 @@ internal fun PremiumPlayerProfile(
     client: GameClient,
     modifier: Modifier,
     padding: Dp,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onTrade: (String) -> Unit
 ) {
     val p=client.selectedProfile
     Column(
@@ -266,6 +267,14 @@ internal fun PremiumPlayerProfile(
                                     .format(Date(p.registeredAt*1000L))
                             else "Неизвестно"
                         }
+                    )
+                }
+                if(p.id!=client.state?.userId) {
+                    GoldButton(
+                        text="⇄ Предложить трейд",
+                        onClick={onTrade(p.id)},
+                        modifier=Modifier.fillMaxWidth(),
+                        enabled=client.status=="Онлайн"
                     )
                 }
                 SectionHeading("Лучший дроп")
