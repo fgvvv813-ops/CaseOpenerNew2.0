@@ -100,16 +100,21 @@ data class TradeTargetInfo(
 
 internal object DeviceAlerts {
     private const val CHANNEL = "caseopener_events_v1"
-    fun notify(context:Context, notice:GameNotice) {
-        if(Build.VERSION.SDK_INT>=33 &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED
-        ) return
+    fun ensureChannel(context:Context) {
         val manager=context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL,"События CaseOpener",NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description="Трейды, выдача монет и уведомления администратора"
             }
         )
+    }
+
+    fun notify(context:Context, notice:GameNotice) {
+        if(Build.VERSION.SDK_INT>=33 &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED
+        ) return
+        ensureChannel(context)
+        val manager=context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val intent=Intent(context,MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val open=PendingIntent.getActivity(context,0,intent,
