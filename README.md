@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.009.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.010.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -59,3 +59,9 @@ The package ID remains `com.caseopener.newtwo` and debug APKs since 0.0.003 use 
 - CS2 catalogue: [skins JSON](data/cs2/skins.json), and additional item categories in `data/cs2/`.
 - The server has to be upgraded to version 0.0.009 to provide image proxy and Telegram catalog import. The APK's API base URL remains http://93.123.84.239:40017.
 - Backend protects SQLite under a private directory and validates API authentication, file names, image hostnames and payload sizes. TLS termination, server file permissions and reverse-proxy access controls are **still required** for production security.
+
+## Backend 0.0.010 compatibility
+
+Android 0.0.010 sends a pseudonymous device ID on login/register and WebSocket authentication. The separately distributed no-Telegram API uses this to enforce account and best-effort device bans. Hardware identifiers can change after factory resets; modified clients can falsify them. This is not an unbypassable device ban.
+
+The Android app supports `state_changed`, `account_banned` and `chat_deleted` events from the API. Game cases, drop odds and images remain server authoritative.

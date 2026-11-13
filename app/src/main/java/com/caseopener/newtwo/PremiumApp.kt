@@ -513,9 +513,9 @@ private fun UpdateInfo(onClose:()->Unit) {
                 verticalArrangement=Arrangement.spacedBy(8.dp)
             ) {
                 Text("УЛУЧШЕНО",color=NeonViolet,fontWeight=FontWeight.Bold)
-                Text("• Кейсы и все предметы приходят только с игрового сервера.")
-                Text("• Поддерживаются изображения CS2-скинов.")
-                Text("• Изменения содержимого кейсов появляются автоматически.")
+                Text("• Улучшены защита аккаунтов и обработка блокировок.")
+                Text("• Баланс и инвентарь автоматически обновляются во время игры.")
+                Text("• Сообщения, удалённые из чата, исчезают у игроков.")
             }
         },
         confirmButton={GoldButton(text="ПОНЯТНО",onClick=onClose)}

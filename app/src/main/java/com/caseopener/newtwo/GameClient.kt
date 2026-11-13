@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
+import java.security.MessageDigest
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -146,6 +148,23 @@ fun mediaUrl(path: String): String? {
     return if (localMedia || cs2Media) SERVER_BASE + path else null
 }
 
+private fun deviceFingerprint(context: Context): String {
+    // Scoped, pseudonymous device identifier. No privileged Android permissions.
+    // It survives app reinstall on most Android versions, but can change after
+    // factory reset, signing-key changes, or on a modified client.
+    val raw = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        ?.takeIf { it.isNotBlank() }
+        ?: run {
+            val prefs=context.getSharedPreferences("caseopener_device_v1", Context.MODE_PRIVATE)
+            prefs.getString("fallback_id", null) ?: UUID.randomUUID().toString().also {
+                prefs.edit().putString("fallback_id",it).apply()
+            }
+        }
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(("caseopener.newtwo.device.v1:" + raw).toByteArray(Charsets.UTF_8))
+    return digest.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2,'0') }
+}
+
 private class SessionStore(context: Context) {
     // Same Android Keystore alias / preference file as 0.0.004: existing accounts stay signed in.
     private val prefs = context.getSharedPreferences("caseopener_online_auth", Context.MODE_PRIVATE)
@@ -185,6 +204,7 @@ private class SessionStore(context: Context) {
 }
 
 class GameClient(context: Context) {
+    private val deviceId = deviceFingerprint(context.applicationContext)
     private val store = SessionStore(context.applicationContext)
     private val main = Handler(Looper.getMainLooper())
     private val http = OkHttpClient.Builder()
@@ -268,6 +288,7 @@ class GameClient(context: Context) {
                     .toString().toRequestBody("application/json; charset=utf-8".toMediaType())
                 val endpoint = if (register) "register" else "login"
                 val request = Request.Builder().url("$SERVER_BASE/api/v1/auth/$endpoint")
+                    .header("X-Device-ID", deviceId)
                     .post(body).build()
                 http.newCall(request).execute().use { response ->
                     val raw = response.body?.string().orEmpty()
@@ -312,7 +333,8 @@ class GameClient(context: Context) {
             .build()
         socket = http.newWebSocket(req, object: WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                webSocket.send(JSONObject().put("type","auth").put("token",t).toString())
+                webSocket.send(JSONObject().put("type","auth").put("token",t)
+                    .put("device_id",deviceId).toString())
             }
             override fun onMessage(webSocket: WebSocket, text: String) {
                 main.post {
@@ -334,9 +356,10 @@ class GameClient(context: Context) {
     }
 
     private fun disconnected(code: Int?) {
-        if (code == 4401) {
+        if (code == 4401 || code == 4403) {
             logoutLocal()
-            error = "Сессия истекла. Войди снова."
+            error = if(code==4403) "Аккаунт или устройство заблокировано."
+                    else "Сессия истекла. Войди снова."
             return
         }
         status = "Нет связи с сервером"
@@ -368,6 +391,18 @@ class GameClient(context: Context) {
                 if (chatEverOpened) requestChatHistory(false)
             }
             "catalog_changed" -> updateCatalog(event)
+            "account_banned" -> {
+                logoutLocal()
+                error = event.optString("message","Аккаунт или устройство заблокировано.")
+            }
+            "state_changed" -> {
+                val fresh = PlayerState.from(event.getJSONObject("state"))
+                if(fresh.revision >= (state?.revision ?: -1)) state = fresh
+            }
+            "chat_deleted" -> {
+                val id = event.optLong("message_id",-1)
+                chatMessages = chatMessages.filterNot { it.id == id }
+            }
             "chat_history" -> {
                 val received = event.optJSONArray("messages").asObjects().map { ChatMessage.from(it) }
                 chatMessages = (chatMessages + received).distinctBy { it.id }
