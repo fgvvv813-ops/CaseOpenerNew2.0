@@ -512,8 +512,13 @@ private fun UpdateInfo(onClose:()->Unit) {
                 Modifier.heightIn(max=330.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement=Arrangement.spacedBy(8.dp)
             ) {
+                Text("ДОБАВЛЕНО",color=NeonGold,fontWeight=FontWeight.Bold)
+                Text("• Общий онлайн-чат с сообщениями от других игроков.")
+                Text("• Просмотр профилей игроков с лучшими наградами и датой регистрации.")
                 Text("УЛУЧШЕНО",color=NeonViolet,fontWeight=FontWeight.Bold)
-                Text("• Обновлено подключение к игровому серверу.")
+                Text("• Сообщения в реальном времени и история переписки.")
+                Text("• Ограничение 5 секунд между отправками и 3–350 символов.")
+                Text("• Уведомления о новых сообщениях.")
             }
         },
         confirmButton={GoldButton(text="ПОНЯТНО",onClick=onClose)}

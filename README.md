@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.007.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.008.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -39,3 +39,15 @@ The package ID remains `com.caseopener.newtwo` and debug APKs since 0.0.003 use 
 - Search, live filters, 18-items-per-page inventory, sort order, rarity labels, player stats computed from real server records, recent owned skins, real logout and a local reduced-motion toggle.
 - No invented XP, payment options, skin listings, or other unsupported backend features. Level is derived from completed case openings (20 openings per level).
 - Stable applicationId, versionCode and testing signature retained.
+
+## Shared chat (v0.0.008)
+
+- Global chat for all registered players, available as a fifth tab.
+- Sends and history over the existing authenticated WebSocket.
+- Per-user 5-second write cooldown is enforced server-side using SQLite.
+- Messages must be 3–350 Unicode code points, trimmed; duplicates prevented by request UUIDs.
+- The server returns the latest 60 messages on demand, then streams changes and supports older-page loading.
+- Tap an author to open a public profile with coin balance, join date, number of openings and best ever drop (tracked separately even when sold).
+- The app shows unread chat counts outside the chat screen.
+- **Server upgrade required:** deploy the separately distributed v0.0.008 bot.py alongside the existing caseopener.db and media directory. Older server versions do not know chat commands.
+- **Never commit the private Telegram bot token to this public repository.**
