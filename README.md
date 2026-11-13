@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.010.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.011.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -65,3 +65,12 @@ The package ID remains `com.caseopener.newtwo` and debug APKs since 0.0.003 use 
 Android 0.0.010 sends a pseudonymous device ID on login/register and WebSocket authentication. The separately distributed no-Telegram API uses this to enforce account and best-effort device bans. Hardware identifiers can change after factory resets; modified clients can falsify them. This is not an unbypassable device ban.
 
 The Android app supports `state_changed`, `account_banned` and `chat_deleted` events from the API. Game cases, drop odds and images remain server authoritative.
+
+## Multiplayer trades and notifications (0.0.011)
+- Android sends `trade_search`, `trade_target`, `trade_create`, `trade_decide`, `trades_list` over an authenticated WebSocket.
+- A trade offers up to six inventory item IDs + coins and requests up to six other item IDs + coins. The server revalidates all ownership and balances at acceptance within one SQLite IMMEDIATE transaction and updates both user revisions.
+- Server notifications are durable SQLite records; `notifications_history` paginates and `notifications_read` marks read, with `notification_new` pushed via WebSocket.
+- Android 13+ requests notification permission. OS notifications can be shown while the WebSocket is alive. **Delivery when the app is terminated requires an FCM push service and device registration, not included in this release.**
+- Coil caches images after their initial download; the app invalidates disk/memory cache keys no longer referenced by server cases/skins or the player's inventory.
+- Compatible game API and website files are distributed separately and MUST be deployed on ports 40017 and 40036 respectively.
+- Never expose the unauthenticated website, the HMAC signing secret, or the SQLite database on the public internet.
