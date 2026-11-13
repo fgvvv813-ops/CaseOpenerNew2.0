@@ -9,6 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -88,12 +91,28 @@ internal fun PremiumGame() {
                     logout={scope.launch {client.logout(); page="home"}})
             } else {
                 BoxWithConstraints(Modifier.fillMaxSize()) {
-                    val contentPadding=if(maxWidth<365.dp) 10.dp else 16.dp
-                    val maxContent=1050.dp
-                    Column(
-                        Modifier.fillMaxSize().widthIn(max=maxContent)
-                            .align(Alignment.TopCenter)
-                    ) {
+                    val tablet = maxWidth >= 720.dp
+                    val contentPadding = when {
+                        maxWidth < 350.dp -> 11.dp
+                        maxWidth < 590.dp -> 16.dp
+                        else -> 24.dp
+                    }
+                    Row(Modifier.fillMaxSize()) {
+                        if(tablet) {
+                            PremiumSideNav(
+                                selected=page,
+                                unread=client.chatUnread,
+                                pending=client.trades.count {
+                                    it.receiverId==client.state?.userId && it.status=="pending"
+                                },
+                                onSelect={page=it}
+                            )
+                        }
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            Column(
+                                Modifier.fillMaxHeight().widthIn(max=1000.dp).fillMaxWidth()
+                                    .align(Alignment.TopCenter)
+                            ) {
                         PremiumHeader(
                             client=client,padding=contentPadding,
                             onSettings={showSettings=true},
@@ -109,10 +128,16 @@ internal fun PremiumGame() {
                             Text(it,modifier=Modifier.fillMaxWidth().padding(horizontal=contentPadding,vertical=4.dp),
                                 color=WarningRed,fontSize=12.sp)
                         }
-                        when(page) {
+                                Crossfade(
+                                    targetState=page,
+                                    modifier=Modifier.weight(1f),
+                                    animationSpec=if(reducedMotion) snap() else tween(230),
+                                    label="Экран"
+                                ) { activePage ->
+                                    when(activePage) {
                             "home" -> PremiumHome(
                                 client=client,
-                                modifier=Modifier.weight(1f),
+                                modifier=Modifier.fillMaxSize(),
                                 padding=contentPadding,
                                 onOpenCases={page="cases"},
                                 onCase={selectedCaseId=it;page="detail"},
@@ -120,13 +145,13 @@ internal fun PremiumGame() {
                                 onNotes={showNotes=true}
                             )
                             "cases" -> PremiumCases(
-                                client=client,modifier=Modifier.weight(1f),padding=contentPadding,
+                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding,
                                 onCase={selectedCaseId=it;page="detail"}
                             )
                             "detail" -> {
                                 val chosen=client.cases.firstOrNull { it.id==selectedCaseId }
                                 if(chosen==null) {
-                                    Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {
+                                    Box(Modifier.fillMaxSize().fillMaxWidth(),contentAlignment=Alignment.Center) {
                                         TextButton(onClick={page="cases"}) {
                                             Text("Этот кейс недоступен. Вернуться к кейсам")
                                         }
@@ -134,25 +159,25 @@ internal fun PremiumGame() {
                                 } else {
                                     PremiumCaseDetail(
                                         client=client,gameCase=chosen,
-                                        modifier=Modifier.weight(1f),padding=contentPadding,
+                                        modifier=Modifier.fillMaxSize(),padding=contentPadding,
                                         onBack={page="cases"}
                                     )
                                 }
                             }
                             "inventory" -> PremiumInventory(
-                                client=client,modifier=Modifier.weight(1f),padding=contentPadding
+                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding
                             )
                             "trades" -> PremiumTrades(
-                                client=client,modifier=Modifier.weight(1f),padding=contentPadding
+                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding
                             )
                             "menu" -> PremiumMenu(
-                                client=client,modifier=Modifier.weight(1f),padding=contentPadding,
+                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding,
                                 onPage={page=it},
                                 onNotes={showNotes=true}
                             )
                             "chat" -> PremiumChat(
                                 client=client,
-                                modifier=Modifier.weight(1f),
+                                modifier=Modifier.fillMaxSize(),
                                 padding=contentPadding,
                                 onPlayer={
                                     client.requestPlayerProfile(it)
@@ -161,7 +186,7 @@ internal fun PremiumGame() {
                             )
                             "player" -> PremiumPlayerProfile(
                                 client=client,
-                                modifier=Modifier.weight(1f),
+                                modifier=Modifier.fillMaxSize(),
                                 padding=contentPadding,
                                 onBack={page="chat"},
                                 onTrade={
@@ -170,20 +195,25 @@ internal fun PremiumGame() {
                                 }
                             )
                             else -> PremiumProfile(
-                                client=client,modifier=Modifier.weight(1f),padding=contentPadding,
+                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding,
                                 onLogout={confirmLogout=true},
                                 onSettings={showSettings=true},
                                 onNotes={showNotes=true}
                             )
                         }
-                        PremiumBottomNav(
-                            selected=page,
-                            unread=client.chatUnread,
-                            pending=client.trades.count {
-                                it.receiverId==client.state?.userId && it.status=="pending"
-                            },
-                            onSelect={page=it}
-                        )
+                                }
+                                if(!tablet) {
+                                    PremiumBottomNav(
+                                        selected=page,
+                                        unread=client.chatUnread,
+                                        pending=client.trades.count {
+                                            it.receiverId==client.state?.userId && it.status=="pending"
+                                        },
+                                        onSelect={page=it}
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 client.reward?.let { item ->
@@ -331,6 +361,55 @@ private fun IconMini(symbol:String,onClick:()->Unit,hasDot:Boolean) {
         if(hasDot) {
             Box(Modifier.size(9.dp).align(Alignment.TopEnd)
                 .clip(RoundedCornerShape(99.dp)).background(NeonGold))
+        }
+    }
+}
+
+@Composable
+private fun PremiumSideNav(
+    selected:String, unread:Int, pending:Int, onSelect:(String)->Unit
+) {
+    NavigationRail(
+        modifier=Modifier.fillMaxHeight().width(94.dp),
+        containerColor=DarkPanel,
+        header={
+            Spacer(Modifier.height(18.dp))
+            Text("CO",fontSize=21.sp,fontWeight=FontWeight.Black,color=NeonGold)
+            Spacer(Modifier.height(15.dp))
+        }
+    ) {
+        listOf(
+            Triple("home","⌂","Главная"),
+            Triple("cases","▣","Кейсы"),
+            Triple("chat","✉","Чат"),
+            Triple("menu","☰","Меню")
+        ).forEach { (key,icon,label) ->
+            val active=selected==key ||
+                (key=="cases" && selected=="detail") ||
+                (key=="chat" && selected=="player") ||
+                (key=="menu" && selected in listOf("profile","inventory","trades"))
+            NavigationRailItem(
+                selected=active,
+                onClick={onSelect(key)},
+                icon={
+                    BadgedBox(badge={
+                        val count=if(key=="chat")unread else if(key=="menu")pending else 0
+                        if(count>0) Badge {
+                            Text(if(count>9)"9+" else count.toString())
+                        }
+                    }){
+                        Text(icon,fontSize=24.sp,
+                            color=if(active)NeonGold else PaleText)
+                    }
+                },
+                label={Text(label,fontSize=11.sp)},
+                alwaysShowLabel=true,
+                colors=NavigationRailItemDefaults.colors(
+                    indicatorColor=LighterPanel,
+                    selectedIconColor=NeonGold,
+                    unselectedIconColor=PaleText
+                )
+            )
         }
     }
 }
