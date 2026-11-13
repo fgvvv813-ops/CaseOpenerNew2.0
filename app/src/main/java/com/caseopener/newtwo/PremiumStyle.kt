@@ -22,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
+import androidx.compose.ui.platform.LocalContext
 import kotlin.math.max
 import kotlin.math.min
 
@@ -136,7 +139,14 @@ internal fun GameArt(
     val validUrl = mediaUrl(imagePath)
     if (validUrl != null) {
         AsyncImage(
-            model=validUrl,
+            model=ImageRequest.Builder(LocalContext.current)
+                .data(validUrl)
+                .diskCacheKey(validUrl)
+                .memoryCacheKey(validUrl)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .crossfade(true)
+                .build(),
             contentDescription=null,
             modifier=modifier.clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF291646)),
