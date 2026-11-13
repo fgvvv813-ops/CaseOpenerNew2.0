@@ -223,6 +223,9 @@ class GameClient(context: Context) {
         private set
     var chatSending by mutableStateOf(false)
         private set
+    var chatUnread by mutableStateOf(0)
+        private set
+    private var chatVisible = false
     var chatError by mutableStateOf<String?>(null)
         private set
     var chatSentNonce by mutableStateOf(0)
@@ -374,6 +377,9 @@ class GameClient(context: Context) {
                 val message = ChatMessage.from(event.getJSONObject("message"))
                 if (chatMessages.none { it.id == message.id }) {
                     chatMessages = (chatMessages + message).sortedBy { it.id }.takeLast(240)
+                    if (!chatVisible && message.userId != state?.userId) {
+                        chatUnread = (chatUnread + 1).coerceAtMost(99)
+                    }
                 }
                 if (event.optString("request_id") == pendingChatRequest) {
                     pendingChatRequest = null
@@ -483,9 +489,13 @@ class GameClient(context: Context) {
     fun acknowledgeReward() { reward=null }
 
     fun openChat() {
+        chatVisible = true
+        chatUnread = 0
         chatEverOpened = true
         if (status == "Онлайн" && !chatLoaded && !chatLoading) requestChatHistory(false)
     }
+
+    fun closeChat() { chatVisible = false }
 
     fun requestChatHistory(older: Boolean) {
         if (status != "Онлайн" || chatLoading) return
@@ -554,6 +564,8 @@ class GameClient(context: Context) {
         chatSending=false
         chatError=null
         chatEverOpened=false
+        chatVisible=false
+        chatUnread=0
         chatCooldownUntil=0L
         selectedProfile=null
         requestedProfileId=null
