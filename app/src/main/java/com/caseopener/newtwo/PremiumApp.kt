@@ -1,6 +1,11 @@
 package com.caseopener.newtwo
 
+import android.Manifest
+import android.os.Build
 import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -47,18 +52,21 @@ internal fun PremiumGame() {
     var page by rememberSaveable { mutableStateOf("home") }
     var selectedCaseId by rememberSaveable { mutableStateOf("") }
     var showNotes by remember { mutableStateOf(false) }
-    var showCoinInfo by remember { mutableStateOf(false) }
+    var showNotifications by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
     var reducedMotion by remember { mutableStateOf(prefs.getBoolean("reduced_motion",false)) }
-    var seenCatalog by rememberSaveable { mutableIntStateOf(0) }
-    var firstCatalog by rememberSaveable { mutableStateOf(true) }
     val online=client.state!=null && client.token!=null
-
-    LaunchedEffect(client.catalogVersion) {
-        if(firstCatalog && client.catalogVersion>0) {
-            seenCatalog=client.catalogVersion
-            firstCatalog=false
+    val noticePermission=rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Android manages the selected notification permission. */ }
+    LaunchedEffect(online) {
+        if(online && Build.VERSION.SDK_INT>=33 &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED &&
+            !prefs.getBoolean("notifications_permission_asked",false)
+        ) {
+            prefs.edit().putBoolean("notifications_permission_asked",true).apply()
+            noticePermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
     DisposableEffect(client) { onDispose { client.close() } }
@@ -86,9 +94,8 @@ internal fun PremiumGame() {
                         PremiumHeader(
                             client=client,padding=contentPadding,
                             onSettings={showSettings=true},
-                            onNotifications={seenCatalog=client.catalogVersion},
-                            hasCatalogUpdate=client.catalogVersion>seenCatalog && seenCatalog>0,
-                            onCoins={showCoinInfo=true}
+                            onNotifications={showNotifications=true},
+                            hasCatalogUpdate=client.unreadNotices>0
                         )
                         if(client.status!="Онлайн") {
                             Text("Соединение с сервером потеряно. Открытие и продажа временно недоступны.",
@@ -104,7 +111,7 @@ internal fun PremiumGame() {
                                 client=client,
                                 modifier=Modifier.weight(1f),
                                 padding=contentPadding,
-                                onOpenCases={page="cases";seenCatalog=client.catalogVersion},
+                                onOpenCases={page="cases"},
                                 onCase={selectedCaseId=it;page="detail"},
                                 onProfile={page="profile"},
                                 onNotes={showNotes=true}
@@ -132,6 +139,14 @@ internal fun PremiumGame() {
                             "inventory" -> PremiumInventory(
                                 client=client,modifier=Modifier.weight(1f),padding=contentPadding
                             )
+                            "trades" -> PremiumTrades(
+                                client=client,modifier=Modifier.weight(1f),padding=contentPadding
+                            )
+                            "menu" -> PremiumMenu(
+                                client=client,modifier=Modifier.weight(1f),padding=contentPadding,
+                                onPage={page=it},
+                                onNotes={showNotes=true}
+                            )
                             "chat" -> PremiumChat(
                                 client=client,
                                 modifier=Modifier.weight(1f),
@@ -145,7 +160,11 @@ internal fun PremiumGame() {
                                 client=client,
                                 modifier=Modifier.weight(1f),
                                 padding=contentPadding,
-                                onBack={page="chat"}
+                                onBack={page="chat"},
+                                onTrade={
+                                    client.requestTradeTarget(it)
+                                    page="trades"
+                                }
                             )
                             else -> PremiumProfile(
                                 client=client,modifier=Modifier.weight(1f),padding=contentPadding,
@@ -157,10 +176,10 @@ internal fun PremiumGame() {
                         PremiumBottomNav(
                             selected=page,
                             unread=client.chatUnread,
-                            onSelect={
-                                page=it
-                                if(it=="cases") seenCatalog=client.catalogVersion
-                            }
+                            pending=client.trades.count {
+                                it.receiverId==client.state?.userId && it.status=="pending"
+                            },
+                            onSelect={page=it}
                         )
                     }
                 }
@@ -176,13 +195,11 @@ internal fun PremiumGame() {
             if(showNotes) {
                 UpdateInfo(onClose={showNotes=false})
             }
-            if(showCoinInfo) {
-                AlertDialog(
-                    onDismissRequest={showCoinInfo=false},
-                    containerColor=DarkPanel,
-                    title={Text("🪙 Игровые монеты")},
-                    text={Text("Монеты можно получать за продажу выигранных скинов. Пополнение за реальные деньги сейчас не предусмотрено.")},
-                    confirmButton={TextButton(onClick={showCoinInfo=false}){Text("Понятно")}}
+            if(showNotifications && online) {
+                NotificationsDialog(
+                    client=client,
+                    onClose={showNotifications=false},
+                    onTrades={showNotifications=false;page="trades"}
                 )
             }
             if(showSettings) {
@@ -237,8 +254,7 @@ private fun PremiumHeader(
     padding: androidx.compose.ui.unit.Dp,
     onSettings: () -> Unit,
     onNotifications: () -> Unit,
-    hasCatalogUpdate: Boolean,
-    onCoins: () -> Unit
+    hasCatalogUpdate: Boolean
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal=padding)) {
         Row(
@@ -253,7 +269,7 @@ private fun PremiumHeader(
                     fontWeight=FontWeight.Black,maxLines=1)
                 Text("N E W   2 . 0",color=NeonGold,fontSize=10.sp,fontWeight=FontWeight.Black)
             }
-            IconMini("♧",onNotifications,hasCatalogUpdate)
+            IconMini("🔔",onNotifications,hasCatalogUpdate)
             Spacer(Modifier.width(7.dp))
             IconMini("⚙",onSettings,false)
         }
@@ -288,11 +304,7 @@ private fun PremiumHeader(
                     Text("🪙 "+(state?.balance?:0).toString(),
                         fontSize=13.sp,color=NeonGold,fontWeight=FontWeight.Black,
                         modifier=Modifier.padding(start=9.dp,top=8.dp,bottom=8.dp))
-                    TextButton(
-                        onClick=onCoins,
-                        contentPadding=PaddingValues(horizontal=6.dp),
-                        modifier=Modifier.defaultMinSize(minWidth=28.dp,minHeight=32.dp)
-                    ) {Text("+",color=NeonGold,fontSize=19.sp)}
+
                 }
             }
         }
@@ -321,7 +333,7 @@ private fun IconMini(symbol:String,onClick:()->Unit,hasDot:Boolean) {
 }
 
 @Composable
-private fun PremiumBottomNav(selected:String,unread:Int,onSelect:(String)->Unit) {
+private fun PremiumBottomNav(selected:String,unread:Int,pending:Int,onSelect:(String)->Unit) {
     NavigationBar(
         modifier=Modifier.fillMaxWidth().heightIn(min=65.dp),
         containerColor=Color(0xFF141027),
@@ -330,20 +342,25 @@ private fun PremiumBottomNav(selected:String,unread:Int,onSelect:(String)->Unit)
         listOf(
             Triple("home","⌂","Главная"),
             Triple("cases","▣","Кейсы"),
-            Triple("inventory","▤","Инвентарь"),
             Triple("chat","✉","Чат"),
-            Triple("profile","♙","Профиль")
+            Triple("menu","☰","Меню")
         ).forEach { (key,glyph,name)->
             val active=selected==key || (selected=="detail" && key=="cases") ||
-                (selected=="player" && key=="chat")
+                (selected=="player" && key=="chat") ||
+                (key=="menu" && selected in listOf("inventory","trades","profile"))
             NavigationBarItem(
                 selected=active,
                 onClick={onSelect(key)},
                 icon={
                     BadgedBox(badge={
-                        if(key=="chat" && unread>0) {
+                        val count=when(key) {
+                            "chat"->unread
+                            "menu"->pending
+                            else->0
+                        }
+                        if(count>0) {
                             Badge(containerColor=NeonViolet,contentColor=SoftWhite) {
-                                Text(if(unread>9)"9+" else unread.toString(),fontSize=9.sp)
+                                Text(if(count>9)"9+" else count.toString(),fontSize=9.sp)
                             }
                         }
                     }) {
@@ -513,9 +530,10 @@ private fun UpdateInfo(onClose:()->Unit) {
                 verticalArrangement=Arrangement.spacedBy(8.dp)
             ) {
                 Text("УЛУЧШЕНО",color=NeonViolet,fontWeight=FontWeight.Bold)
-                Text("• Улучшены защита аккаунтов и обработка блокировок.")
-                Text("• Баланс и инвентарь автоматически обновляются во время игры.")
-                Text("• Сообщения, удалённые из чата, исчезают у игроков.")
+                Text("• Центр уведомлений о подарках, монетах и новостях.")
+                Text("• Трейды: обмен до шести скинов и монет между игроками.")
+                Text("• Более удобное меню и мгновенная синхронизация данных.")
+                Text("• Изображения кэшируются на телефоне и обновляются при изменениях.")
             }
         },
         confirmButton={GoldButton(text="ПОНЯТНО",onClick=onClose)}
