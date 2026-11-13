@@ -132,6 +132,21 @@ internal fun PremiumGame() {
                             "inventory" -> PremiumInventory(
                                 client=client,modifier=Modifier.weight(1f),padding=contentPadding
                             )
+                            "chat" -> PremiumChat(
+                                client=client,
+                                modifier=Modifier.weight(1f),
+                                padding=contentPadding,
+                                onPlayer={
+                                    client.requestPlayerProfile(it)
+                                    page="player"
+                                }
+                            )
+                            "player" -> PremiumPlayerProfile(
+                                client=client,
+                                modifier=Modifier.weight(1f),
+                                padding=contentPadding,
+                                onBack={page="chat"}
+                            )
                             else -> PremiumProfile(
                                 client=client,modifier=Modifier.weight(1f),padding=contentPadding,
                                 onLogout={confirmLogout=true},
@@ -141,6 +156,7 @@ internal fun PremiumGame() {
                         }
                         PremiumBottomNav(
                             selected=page,
+                            unread=client.chatUnread,
                             onSelect={
                                 page=it
                                 if(it=="cases") seenCatalog=client.catalogVersion
@@ -305,7 +321,7 @@ private fun IconMini(symbol:String,onClick:()->Unit,hasDot:Boolean) {
 }
 
 @Composable
-private fun PremiumBottomNav(selected:String,onSelect:(String)->Unit) {
+private fun PremiumBottomNav(selected:String,unread:Int,onSelect:(String)->Unit) {
     NavigationBar(
         modifier=Modifier.fillMaxWidth().heightIn(min=65.dp),
         containerColor=Color(0xFF141027),
@@ -315,16 +331,26 @@ private fun PremiumBottomNav(selected:String,onSelect:(String)->Unit) {
             Triple("home","⌂","Главная"),
             Triple("cases","▣","Кейсы"),
             Triple("inventory","▤","Инвентарь"),
+            Triple("chat","✉","Чат"),
             Triple("profile","♙","Профиль")
         ).forEach { (key,glyph,name)->
-            val active=selected==key || (selected=="detail" && key=="cases")
+            val active=selected==key || (selected=="detail" && key=="cases") ||
+                (selected=="player" && key=="chat")
             NavigationBarItem(
                 selected=active,
                 onClick={onSelect(key)},
                 icon={
-                    Text(glyph,fontSize=24.sp,
-                        color=if(active)NeonGold else PaleText,
-                        fontWeight=FontWeight.Black)
+                    BadgedBox(badge={
+                        if(key=="chat" && unread>0) {
+                            Badge(containerColor=NeonViolet,contentColor=SoftWhite) {
+                                Text(if(unread>9)"9+" else unread.toString(),fontSize=9.sp)
+                            }
+                        }
+                    }) {
+                        Text(glyph,fontSize=22.sp,
+                            color=if(active)NeonGold else PaleText,
+                            fontWeight=FontWeight.Black)
+                    }
                 },
                 label={
                     Text(name,fontSize=10.sp,maxLines=1,
