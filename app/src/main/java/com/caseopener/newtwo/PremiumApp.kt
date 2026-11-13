@@ -1,6 +1,8 @@
 package com.caseopener.newtwo
 
 import android.Manifest
+import android.content.Intent
+import android.provider.Settings
 import android.os.Build
 import android.content.Context
 import android.content.pm.PackageManager
@@ -40,14 +42,29 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private var notificationOpenVersion by mutableIntStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { PremiumGame() }
+        if(intent?.getBooleanExtra("open_notifications",false)==true) notificationOpenVersion++
+        setContent { PremiumGame(notificationOpenVersion) }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if(intent.getBooleanExtra("open_notifications",false)) notificationOpenVersion++
+    }
+    override fun onStart() {
+        super.onStart()
+        AppVisibility.visible=true
+    }
+    override fun onStop() {
+        AppVisibility.visible=false
+        super.onStop()
     }
 }
 
 @Composable
-internal fun PremiumGame() {
+internal fun PremiumGame(openNotificationsVersion:Int = 0) {
     val context=LocalContext.current
     val client=remember { GameClient(context.applicationContext) }
     val prefs=remember { context.applicationContext.getSharedPreferences("caseopener_ui",Context.MODE_PRIVATE) }
@@ -60,6 +77,9 @@ internal fun PremiumGame() {
     var confirmLogout by remember { mutableStateOf(false) }
     var reducedMotion by remember { mutableStateOf(prefs.getBoolean("reduced_motion",false)) }
     val online=client.state!=null && client.token!=null
+    LaunchedEffect(openNotificationsVersion,online) {
+        if(online && openNotificationsVersion>0) showNotifications=true
+    }
     val noticePermission=rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* Android manages the selected notification permission. */ }
@@ -80,8 +100,8 @@ internal fun PremiumGame() {
     MaterialTheme(colorScheme=premiumScheme) {
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(listOf(DarkBg,Color(0xFF100D26),DarkBg))
-            ).statusBarsPadding().navigationBarsPadding()
+                Brush.verticalGradient(listOf(DarkBg,Color(0xFF0B222B),DarkBg))
+            ).statusBarsPadding().navigationBarsPadding().imePadding()
         ) {
             if(client.token==null) {
                 PremiumLogin(client)
@@ -256,6 +276,23 @@ internal fun PremiumGame() {
                                     }
                                 )
                             }
+                            HorizontalDivider(color=NeonViolet.copy(alpha=0.18f))
+                            val permissionOK = Build.VERSION.SDK_INT < 33 ||
+                                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                                    PackageManager.PERMISSION_GRANTED
+                            Text(
+                                if(permissionOK)"Уведомления Android разрешены"
+                                else "Системные уведомления отключены",
+                                color=if(permissionOK)NeonViolet else WarningRed,fontSize=12.sp
+                            )
+                            OutlinedButton(
+                                onClick={
+                                    val intent=Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                        .putExtra(Settings.EXTRA_APP_PACKAGE,context.packageName)
+                                    context.startActivity(intent)
+                                },
+                                modifier=Modifier.fillMaxWidth()
+                            ){ Text("Настроить уведомления") }
                             Text("Версия "+BuildConfig.VERSION_NAME,color=PaleText,fontSize=12.sp)
                         }
                     },
@@ -309,7 +346,7 @@ private fun PremiumHeader(
         val state=client.state
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF17152A)).padding(9.dp),
+                .background(Color(0xFF122732)).padding(9.dp),
             verticalAlignment=Alignment.CenterVertically
         ) {
             Image(painter=painterResource(R.drawable.ic_launcher),contentDescription=null,
@@ -324,12 +361,12 @@ private fun PremiumHeader(
                     progress={progressFraction(state?.openings?:0)},
                     modifier=Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(8.dp)),
                     color=NeonViolet,
-                    trackColor=Color(0xFF423957)
+                    trackColor=Color(0xFF2C4A55)
                 )
             }
             Spacer(Modifier.width(9.dp))
             Surface(
-                color=Color(0xFF35240F),
+                color=Color(0xFF3C3224),
                 border=BorderStroke(1.dp,NeonGold),
                 shape=RoundedCornerShape(12.dp)
             ) {
@@ -349,9 +386,9 @@ private fun PremiumHeader(
 private fun IconMini(symbol:String,onClick:()->Unit,hasDot:Boolean) {
     Box {
         Surface(
-            color=Color(0xFF24203B),
+            color=Color(0xFF1A303A),
             shape=RoundedCornerShape(12.dp),
-            border=BorderStroke(1.dp,Color(0xFF524674)),
+            border=BorderStroke(1.dp,Color(0xFF3C6070)),
             modifier=Modifier.size(40.dp).clickable(onClick=onClick)
         ) {
             Box(contentAlignment=Alignment.Center) {
@@ -418,7 +455,7 @@ private fun PremiumSideNav(
 private fun PremiumBottomNav(selected:String,unread:Int,pending:Int,onSelect:(String)->Unit) {
     NavigationBar(
         modifier=Modifier.fillMaxWidth().heightIn(min=65.dp),
-        containerColor=Color(0xFF141027),
+        containerColor=Color(0xFF0F222B),
         tonalElevation=5.dp
     ) {
         listOf(
@@ -457,7 +494,7 @@ private fun PremiumBottomNav(selected:String,unread:Int,pending:Int,onSelect:(St
                         fontWeight=if(active)FontWeight.Bold else FontWeight.Normal)
                 },
                 colors=NavigationBarItemDefaults.colors(
-                    indicatorColor=Color(0xFF3A2A26),
+                    indicatorColor=Color(0xFF203E46),
                     selectedIconColor=NeonGold,
                     unselectedIconColor=PaleText
                 )
