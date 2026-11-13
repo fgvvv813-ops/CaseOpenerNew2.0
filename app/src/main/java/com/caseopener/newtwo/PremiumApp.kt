@@ -69,6 +69,9 @@ internal fun PremiumGame() {
             noticePermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
+    LaunchedEffect(client.catalogVersion,client.state?.revision) {
+        DeviceImageCache.reconcile(context.applicationContext,client.cases,client.state)
+    }
     DisposableEffect(client) { onDispose { client.close() } }
 
     MaterialTheme(colorScheme=premiumScheme) {
