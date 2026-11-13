@@ -24,25 +24,37 @@ jobs:
           gradle-version: '8.9'
       - name: Install Android API 35
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
           test -n "$SDKMANAGER" || { echo "Android sdkmanager not found"; exit 1; }
           "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Read app version
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^appVersionName=//p' gradle.properties | tr -d '\r')
+          test -n "$VERSION" || { echo "appVersionName is required"; exit 1; }
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Version: $VERSION"
       - name: Build debug APK
         run: gradle --no-daemon --stacktrace :app:assembleDebug
-      - name: Upload APK
+      - name: Prepare versioned APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk "CaseOpener-New-2.0-v${APP_VERSION}.apk"
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CaseOpener-New-2.0-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: CaseOpener-v${{ env.APP_VERSION }}-debug-apk
+          path: CaseOpener-New-2.0-v*.apk
           if-no-files-found: error
           retention-days: 30
-      - name: Publish direct APK download in GitHub Releases
+      - name: Publish versioned APK in GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk CaseOpener-New-2.0.apk
-          gh release create "build-${GITHUB_RUN_NUMBER}" "CaseOpener-New-2.0.apk" \
-            --title "CaseOpener New 2.0 - Build ${GITHUB_RUN_NUMBER}" \
-            --notes "Automated Android debug build. Download CaseOpener-New-2.0.apk and install on Android." \
-            --latest
+          TAG="v${APP_VERSION}"
+          FILE="CaseOpener-New-2.0-v${APP_VERSION}.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$FILE" --clobber
+            gh release edit "$TAG" --title "CaseOpener New 2.0 - $TAG" --notes-file RELEASE_NOTES.md --latest
+          else
+            gh release create "$TAG" "$FILE" --title "CaseOpener New 2.0 - $TAG" --notes-file RELEASE_NOTES.md --latest
+          fi
