@@ -80,6 +80,17 @@ private val releaseNotesByVersion = mapOf(
             "Стали удобнее навигация, инвентарь, профиль и окно обновлений.",
             "Улучшено сохранение баланса, коллекции и статистики."
         )
+    ),
+    "0.0.004" to ReleaseNotes(
+        added = listOf(
+            "Онлайн-режим с созданием аккаунта и входом по логину и паролю.",
+            "Общий прогресс аккаунта: монеты, кейсы и инвентарь доступны после входа с другого устройства."
+        ),
+        improved = listOf(
+            "Кейсы и награды загружаются с сервера.",
+            "Профиль автоматически синхронизирует игровой прогресс.",
+            "Офлайн-режим по-прежнему доступен без интернета."
+        )
     )
 )
 
@@ -223,6 +234,7 @@ class MainActivity : ComponentActivity() {
             }
 
             var tab by rememberSaveable { mutableIntStateOf(0) }
+            var onlineMode by rememberSaveable { mutableStateOf(false) }
             var selectedCase by remember { mutableStateOf<CaseInfo?>(null) }
             var winningPrize by remember { mutableStateOf<Prize?>(null) }
             var opening by remember { mutableStateOf(false) }
@@ -252,7 +264,22 @@ class MainActivity : ComponentActivity() {
                     Column(
                         Modifier.fillMaxSize().widthIn(max = 1160.dp).align(Alignment.TopCenter)
                     ) {
-                        Header(balance = balance, compact = compact, pad = pad)
+                        Header(balance = balance, compact = compact, pad = pad, onlineMode = onlineMode)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = pad),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            FilterChip(
+                                selected = !onlineMode,
+                                onClick = { onlineMode = false },
+                                label = { Text("⌂  Офлайн", fontWeight = FontWeight.Bold) }
+                            )
+                            FilterChip(
+                                selected = onlineMode,
+                                onClick = { onlineMode = true },
+                                label = { Text("☁  Онлайн", fontWeight = FontWeight.Bold) }
+                            )
+                        }
                         NavigationTabs(
                             selectedTab = tab,
                             compact = compact,
@@ -271,7 +298,9 @@ class MainActivity : ComponentActivity() {
                                 textAlign = TextAlign.Center
                             )
                         }
-                        when (tab) {
+                        if (onlineMode) {
+                            OnlineHub(modifier = Modifier.weight(1f), tab = tab)
+                        } else when (tab) {
                             0 -> CaseScreen(
                                 modifier = Modifier.weight(1f),
                                 wide = wide,
@@ -353,7 +382,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Header(balance: Int, compact: Boolean, pad: androidx.compose.ui.unit.Dp) {
+private fun Header(balance: Int, compact: Boolean, pad: androidx.compose.ui.unit.Dp, onlineMode: Boolean) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = pad, vertical = if (compact) 10.dp else 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -381,9 +410,9 @@ private fun Header(balance: Int, compact: Boolean, pad: androidx.compose.ui.unit
                 .background(Panel).padding(horizontal = if (compact) 9.dp else 14.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.End
         ) {
-            Text("БАЛАНС", color = Muted, fontSize = 9.sp)
+            Text(if (onlineMode) "РЕЖИМ" else "БАЛАНС", color = Muted, fontSize = 9.sp)
             Text(
-                "🪙 $balance", color = Gold,
+                if (onlineMode) "☁ Онлайн" else "🪙 $balance", color = Gold,
                 fontWeight = FontWeight.Bold, fontSize = if (compact) 15.sp else 20.sp,
                 maxLines = 1
             )
