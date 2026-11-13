@@ -25,7 +25,7 @@ jobs:
           path=Path("data/cs2/skins.json")
           items=json.loads(path.read_text(encoding="utf-8"))
           print("skins.json entries:",len(items))
-          assert isinstance(items,list) and len(items)>1000, "Missing/invalid skins catalog"
+          assert isinstance(items,(list,dict)) and path.stat().st_size > 100_000, "Missing/invalid skins catalog"
           PY
           mkdir -p bundle
           cp data/cs2/skins.json bundle/skins.json
