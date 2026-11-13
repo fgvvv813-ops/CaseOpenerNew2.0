@@ -17,13 +17,13 @@ android {
         // Nonsecret Firebase Android client configuration, injected at APK build time.
         // Private Firebase SERVICE ACCOUNT credentials must NEVER be put in the APK.
         buildConfigField("String", "FIREBASE_PROJECT_ID",
-            "\\"" + providers.environmentVariable("FIREBASE_PROJECT_ID").orElse("").get() + "\\"")
+            "\"" + providers.environmentVariable("FIREBASE_PROJECT_ID").orElse("").get() + "\""
         buildConfigField("String", "FIREBASE_SENDER_ID",
-            "\\"" + providers.environmentVariable("FIREBASE_SENDER_ID").orElse("").get() + "\\"")
+            "\"" + providers.environmentVariable("FIREBASE_SENDER_ID").orElse("").get() + "\""
         buildConfigField("String", "FIREBASE_APPLICATION_ID",
-            "\\"" + providers.environmentVariable("FIREBASE_APPLICATION_ID").orElse("").get() + "\\"")
+            "\"" + providers.environmentVariable("FIREBASE_APPLICATION_ID").orElse("").get() + "\""
         buildConfigField("String", "FIREBASE_API_KEY",
-            "\\"" + providers.environmentVariable("FIREBASE_API_KEY").orElse("").get() + "\\"")
+            "\"" + providers.environmentVariable("FIREBASE_API_KEY").orElse("").get() + "\""
 
     }
 
