@@ -295,6 +295,7 @@ class GameClient(context: Context) {
     private var connectionGeneration = 0
     private var pendingOpenRequest: String? = null
     private var pendingSellRequest: String? = null
+    private var lastPushTokenSent: String? = null
 
     init {
         if (token != null) connect()
@@ -351,6 +352,8 @@ class GameClient(context: Context) {
         socket?.cancel()
         socket = null
         status = "Подключение…"
+        lastPushTokenSent = null
+        AppVisibility.websocketConnected = false
         val req = Request.Builder()
             .url(SERVER_BASE.replaceFirst("http","ws") + "/api/v1/ws")
             .build()
@@ -385,6 +388,7 @@ class GameClient(context: Context) {
                     else "Сессия истекла. Войди снова."
             return
         }
+        AppVisibility.websocketConnected = false
         status = "Нет связи с сервером"
         opening = false
         selling = false
@@ -412,8 +416,17 @@ class GameClient(context: Context) {
                 state = PlayerState.from(event.getJSONObject("state"))
                 updateCatalog(event.getJSONObject("catalog"))
                 status = "Онлайн"
+                AppVisibility.websocketConnected = true
                 error = null
                 tries = 0
+                PushManager.refreshToken(appContext) { latest ->
+                    main.post {
+                        if(status=="Онлайн" && token!=null && lastPushTokenSent!=latest) {
+                            val request=JSONObject().put("type","push_register").put("token",latest)
+                            if(socket?.send(request.toString())==true) lastPushTokenSent=latest
+                        }
+                    }
+                }
                 if (chatEverOpened) requestChatHistory(false)
             }
             "catalog_changed" -> updateCatalog(event)
@@ -733,6 +746,12 @@ class GameClient(context: Context) {
     }
 
     fun logoutLocal() {
+        AppVisibility.websocketConnected = false
+        // Revoke this device token before the WebSocket closes so that the
+        // logged-out device doesn't receive notifications for this account.
+        PushManager.token(appContext)?.let { push ->
+            socket?.send(JSONObject().put("type","push_unregister").put("token",push).toString())
+        }
         connectionGeneration++
         socket?.close(1000,"logout")
         socket=null
@@ -790,6 +809,7 @@ class GameClient(context: Context) {
 
     fun close() {
         closed=true
+        AppVisibility.websocketConnected=false
         connectionGeneration++
         socket?.close(1000, "app closed")
         socket=null
