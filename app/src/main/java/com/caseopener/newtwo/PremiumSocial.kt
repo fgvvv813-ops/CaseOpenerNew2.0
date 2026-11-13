@@ -116,6 +116,7 @@ internal object DeviceAlerts {
         ensureChannel(context)
         val manager=context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val intent=Intent(context,MainActivity::class.java)
+            .putExtra("open_notifications",true)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val open=PendingIntent.getActivity(context,0,intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
