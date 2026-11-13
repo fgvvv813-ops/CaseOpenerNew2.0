@@ -3,6 +3,7 @@ package com.caseopener.newtwo
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -74,14 +75,60 @@ data class OwnedSkin(
 
 data class PlayerState(
     val username: String, val balance: Int, val openings: Int,
-    val revision: Int, val inventory: List<OwnedSkin>
+    val revision: Int, val inventory: List<OwnedSkin>, val userId: String = ""
 ) {
     companion object {
         fun from(j: JSONObject): PlayerState = PlayerState(
             j.getString("username"), j.getInt("balance"),
             j.getInt("openings"), j.optInt("revision"),
-            j.optJSONArray("inventory").asObjects().map { OwnedSkin.from(it) }
+            j.optJSONArray("inventory").asObjects().map { OwnedSkin.from(it) },
+            j.optString("id")
         )
+    }
+}
+
+data class ChatMessage(
+    val id: Long,
+    val userId: String,
+    val username: String,
+    val body: String,
+    val createdAt: Long
+) {
+    companion object {
+        fun from(j: JSONObject) = ChatMessage(
+            j.getLong("id"), j.optString("user_id"),
+            j.optString("username"), j.optString("body"), j.optLong("created_at")
+        )
+    }
+}
+
+data class BestDrop(
+    val name: String, val rarity: String, val value: Int,
+    val emoji: String, val imageUrl: String, val caseId: String
+) {
+    companion object {
+        fun from(j: JSONObject) = BestDrop(
+            j.optString("name"), j.optString("rarity"),
+            j.optInt("value"), j.optString("emoji", "✦"),
+            j.optString("image_url"), j.optString("case_id")
+        )
+    }
+}
+
+data class PublicPlayerProfile(
+    val id: String, val username: String, val balance: Int,
+    val openings: Int, val registeredAt: Long, val bestDrop: BestDrop?
+) {
+    companion object {
+        fun from(j: JSONObject): PublicPlayerProfile {
+            val best = j.optJSONObject("best_drop")
+            return PublicPlayerProfile(
+                j.getString("id"), j.getString("username"),
+                j.optInt("balance"), j.optInt("openings"),
+                j.optLong("registered_at"),
+                if (best == null) null else BestDrop.from(best)
+            )
+        }
     }
 }
 
@@ -166,6 +213,33 @@ class GameClient(context: Context) {
     var rewardCaseId by mutableStateOf<String?>(null)
         private set
 
+    var chatMessages by mutableStateOf<List<ChatMessage>>(emptyList())
+        private set
+    var chatLoaded by mutableStateOf(false)
+        private set
+    var chatLoading by mutableStateOf(false)
+        private set
+    var chatHasMore by mutableStateOf(false)
+        private set
+    var chatSending by mutableStateOf(false)
+        private set
+    var chatError by mutableStateOf<String?>(null)
+        private set
+    var chatSentNonce by mutableStateOf(0)
+        private set
+    var chatCooldownUntil by mutableStateOf(0L)
+        private set
+    var selectedProfile by mutableStateOf<PublicPlayerProfile?>(null)
+        private set
+    var requestedProfileId by mutableStateOf<String?>(null)
+        private set
+    var profileLoading by mutableStateOf(false)
+        private set
+    var profileError by mutableStateOf<String?>(null)
+        private set
+
+    private var chatEverOpened = false
+    private var pendingChatRequest: String? = null
     private var socket: WebSocket? = null
     private var closed = false
     private var tries = 0
@@ -264,6 +338,11 @@ class GameClient(context: Context) {
         selling = false
         pendingOpenRequest = null
         pendingSellRequest = null
+        pendingChatRequest = null
+        chatSending = false
+        chatLoading = false
+        chatLoaded = false
+        profileLoading = false
         tries = (tries+1).coerceAtMost(6)
         val backoff = (1000L * (1 shl tries)).coerceAtMost(30000L)
         val generation = connectionGeneration
@@ -280,8 +359,52 @@ class GameClient(context: Context) {
                 status = "Онлайн"
                 error = null
                 tries = 0
+                if (chatEverOpened) requestChatHistory(false)
             }
             "catalog_changed" -> updateCatalog(event)
+            "chat_history" -> {
+                val received = event.optJSONArray("messages").asObjects().map { ChatMessage.from(it) }
+                chatMessages = (chatMessages + received).distinctBy { it.id }
+                    .sortedBy { it.id }.takeLast(240)
+                chatHasMore = event.optBoolean("has_more")
+                chatLoaded = true
+                chatLoading = false
+            }
+            "chat_message" -> {
+                val message = ChatMessage.from(event.getJSONObject("message"))
+                if (chatMessages.none { it.id == message.id }) {
+                    chatMessages = (chatMessages + message).sortedBy { it.id }.takeLast(240)
+                }
+                if (event.optString("request_id") == pendingChatRequest) {
+                    pendingChatRequest = null
+                    chatSending = false
+                    chatError = null
+                    chatSentNonce++
+                    chatCooldownUntil = SystemClock.elapsedRealtime() + 5000L
+                }
+            }
+            "chat_error" -> {
+                chatError = event.optString("message", "Не удалось отправить сообщение")
+                if (event.optString("request_id") == pendingChatRequest) {
+                    pendingChatRequest = null
+                    chatSending = false
+                }
+                val wait = event.optLong("retry_after_ms")
+                if (wait > 0) chatCooldownUntil = SystemClock.elapsedRealtime() + wait
+                if (chatLoading && !event.has("request_id")) chatLoading = false
+            }
+            "player_profile" -> {
+                val info = PublicPlayerProfile.from(event.getJSONObject("profile"))
+                if (info.id == requestedProfileId) {
+                    selectedProfile = info
+                    profileLoading = false
+                    profileError = null
+                }
+            }
+            "profile_error" -> {
+                profileLoading = false
+                profileError = event.optString("message", "Профиль недоступен")
+            }
             "case_opened" -> {
                 val before = state ?: return
                 val revision = event.optInt("revision")
@@ -359,6 +482,56 @@ class GameClient(context: Context) {
 
     fun acknowledgeReward() { reward=null }
 
+    fun openChat() {
+        chatEverOpened = true
+        if (status == "Онлайн" && !chatLoaded && !chatLoading) requestChatHistory(false)
+    }
+
+    fun requestChatHistory(older: Boolean) {
+        if (status != "Онлайн" || chatLoading) return
+        if (older && (!chatLoaded || !chatHasMore || chatMessages.isEmpty())) return
+        val before = if (older) chatMessages.first().id else 0L
+        val payload = JSONObject().put("type", "chat_history").put("before_id", before)
+        if (socket?.send(payload.toString()) == true) {
+            chatLoading = true
+            chatError = null
+        }
+    }
+
+    fun sendChat(text: String): Boolean {
+        val body = text.trim()
+        val chars = body.codePointCount(0, body.length)
+        if (chars !in 3..350 || chatSending || status != "Онлайн") return false
+        if (SystemClock.elapsedRealtime() < chatCooldownUntil) return false
+        val rid = UUID.randomUUID().toString()
+        val payload = JSONObject().put("type", "chat_send")
+            .put("request_id", rid).put("body", body)
+        if (socket?.send(payload.toString()) != true) return false
+        chatSending = true
+        chatError = null
+        pendingChatRequest = rid
+        return true
+    }
+
+    fun requestPlayerProfile(userId: String) {
+        requestedProfileId = userId
+        selectedProfile = null
+        profileError = null
+        if (status != "Онлайн" || userId.isBlank()) {
+            profileLoading = false
+            profileError = "Нет подключения к серверу"
+            return
+        }
+        profileLoading = socket?.send(
+            JSONObject().put("type", "get_profile").put("user_id", userId).toString()
+        ) == true
+        if (!profileLoading) profileError = "Не удалось загрузить профиль"
+    }
+
+    fun retryPlayerProfile() {
+        requestedProfileId?.let { requestPlayerProfile(it) }
+    }
+
     fun logoutLocal() {
         connectionGeneration++
         socket?.close(1000,"logout")
@@ -373,6 +546,19 @@ class GameClient(context: Context) {
         selling=false
         pendingOpenRequest=null
         pendingSellRequest=null
+        pendingChatRequest=null
+        chatMessages=emptyList()
+        chatLoaded=false
+        chatLoading=false
+        chatHasMore=false
+        chatSending=false
+        chatError=null
+        chatEverOpened=false
+        chatCooldownUntil=0L
+        selectedProfile=null
+        requestedProfileId=null
+        profileLoading=false
+        profileError=null
     }
 
     suspend fun logout() {
