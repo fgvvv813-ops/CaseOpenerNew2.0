@@ -204,6 +204,7 @@ private class SessionStore(context: Context) {
 }
 
 class GameClient(context: Context) {
+    private val appContext = context.applicationContext
     private val deviceId = deviceFingerprint(context.applicationContext)
     private val store = SessionStore(context.applicationContext)
     private val main = Handler(Looper.getMainLooper())
@@ -264,6 +265,28 @@ class GameClient(context: Context) {
     var profileError by mutableStateOf<String?>(null)
         private set
 
+    var notices by mutableStateOf<List<GameNotice>>(emptyList())
+        private set
+    var unreadNotices by mutableStateOf(0)
+        private set
+    var noticesHasMore by mutableStateOf(false)
+        private set
+    var trades by mutableStateOf<List<GameTrade>>(emptyList())
+        private set
+    var tradeTarget by mutableStateOf<TradeTargetInfo?>(null)
+        private set
+    var tradeTargetLoading by mutableStateOf(false)
+        private set
+    var tradeSearchPlayers by mutableStateOf<List<TradePlayer>>(emptyList())
+        private set
+    var tradeBusy by mutableStateOf(false)
+        private set
+    var tradeError by mutableStateOf<String?>(null)
+        private set
+    var tradeFeedback by mutableStateOf<String?>(null)
+        private set
+
+    private var pendingTradeRequest: String? = null
     private var chatEverOpened = false
     private var pendingChatRequest: String? = null
     private var socket: WebSocket? = null
@@ -372,6 +395,9 @@ class GameClient(context: Context) {
         chatLoading = false
         chatLoaded = false
         profileLoading = false
+        tradeBusy = false
+        tradeTargetLoading = false
+        pendingTradeRequest = null
         tries = (tries+1).coerceAtMost(6)
         val backoff = (1000L * (1 shl tries)).coerceAtMost(30000L)
         val generation = connectionGeneration
@@ -391,6 +417,57 @@ class GameClient(context: Context) {
                 if (chatEverOpened) requestChatHistory(false)
             }
             "catalog_changed" -> updateCatalog(event)
+            "notifications_history" -> {
+                val incoming=event.optJSONArray("notifications").asObjects().map {GameNotice.from(it)}
+                notices=(notices+incoming).associateBy {it.id}.values
+                    .sortedByDescending {it.id}.take(1000)
+                noticesHasMore=event.optBoolean("has_more",false)
+                unreadNotices=event.optInt("unread",0)
+            }
+            "notification_new" -> {
+                val notice=GameNotice.from(event.getJSONObject("notification"))
+                if(notices.none {it.id==notice.id}) {
+                    notices=(listOf(notice)+notices).sortedByDescending{it.id}.take(1000)
+                    unreadNotices=(unreadNotices+1).coerceAtMost(99999)
+                    DeviceAlerts.notify(appContext,notice)
+                }
+            }
+            "notifications_read" -> {
+                notices=notices.map{it.copy(read=true)}
+                unreadNotices=0
+            }
+            "trades_list" -> {
+                trades=event.optJSONArray("trades").asObjects().map {GameTrade.from(it)}
+            }
+            "trade_search" -> {
+                tradeSearchPlayers=event.optJSONArray("players").asObjects().map {TradePlayer.from(it)}
+            }
+            "trade_target" -> {
+                tradeTarget=TradeTargetInfo.from(event)
+                tradeTargetLoading=false
+                tradeSearchPlayers=emptyList()
+                tradeError=null
+            }
+            "trade_result" -> {
+                if(event.optString("request_id")==pendingTradeRequest) {
+                    pendingTradeRequest=null
+                    tradeBusy=false
+                    tradeError=null
+                    tradeFeedback=when(event.optString("action")) {
+                        "create"->"Предложение отправлено игроку"
+                        "accept"->"Обмен завершён. Инвентарь и баланс обновлены"
+                        "reject"->"Предложение отклонено"
+                        else->"Предложение отменено"
+                    }
+                    loadTrades()
+                }
+            }
+            "trade_error" -> {
+                tradeError=event.optString("message","Ошибка при обмене")
+                tradeBusy=false
+                tradeTargetLoading=false
+                pendingTradeRequest=null
+            }
             "account_banned" -> {
                 logoutLocal()
                 error = event.optString("message","Аккаунт или устройство заблокировано.")
@@ -526,6 +603,81 @@ class GameClient(context: Context) {
 
     fun acknowledgeReward() { reward=null }
 
+    fun requestOlderNotices() {
+        if(status!="Онлайн" || !noticesHasMore || notices.isEmpty()) return
+        socket?.send(JSONObject().put("type","notifications_history")
+            .put("before_id",notices.last().id).toString())
+    }
+
+    fun markNoticesRead() {
+        if(status=="Онлайн") {
+            socket?.send(JSONObject().put("type","notifications_read").toString())
+        }
+    }
+
+    fun loadTrades() {
+        if(status=="Онлайн") socket?.send(JSONObject().put("type","trades_list").toString())
+    }
+
+    fun searchTradePlayers(query:String) {
+        if(status!="Онлайн" || query.trim().length<2) return
+        tradeError=null
+        tradeSearchPlayers=emptyList()
+        socket?.send(JSONObject().put("type","trade_search")
+            .put("query",query.trim().take(24)).toString())
+    }
+
+    fun requestTradeTarget(userId:String) {
+        if(status!="Онлайн" || userId.isBlank()) return
+        tradeTarget=null
+        tradeTargetLoading=true
+        tradeSearchPlayers=emptyList()
+        tradeError=null
+        if(socket?.send(JSONObject().put("type","trade_target")
+                .put("user_id",userId).toString())!=true) {
+            tradeTargetLoading=false
+            tradeError="Нет подключения к серверу"
+        }
+    }
+
+    fun createTrade(
+        targetId:String, offeredItems:List<Long>, requestedItems:List<Long>,
+        offeredCoins:Int, requestedCoins:Int
+    ):Boolean {
+        if(tradeBusy || status!="Онлайн" ||
+            offeredItems.size>6 || requestedItems.size>6 ||
+            offeredItems.size!=offeredItems.distinct().size ||
+            requestedItems.size!=requestedItems.distinct().size ||
+            offeredCoins<0 || requestedCoins<0) return false
+        val rid=UUID.randomUUID().toString()
+        val payload=JSONObject().put("type","trade_create")
+            .put("target_id",targetId)
+            .put("offer_items",JSONArray(offeredItems))
+            .put("request_items",JSONArray(requestedItems))
+            .put("offer_coins",offeredCoins).put("request_coins",requestedCoins)
+            .put("request_id",rid)
+        if(socket?.send(payload.toString())!=true) return false
+        tradeBusy=true
+        pendingTradeRequest=rid
+        tradeError=null
+        tradeFeedback=null
+        return true
+    }
+
+    fun decideTrade(tradeId:String,decision:String):Boolean {
+        if(tradeBusy || status!="Онлайн" || decision !in listOf("accept","reject","cancel"))
+            return false
+        val rid=UUID.randomUUID().toString()
+        val payload=JSONObject().put("type","trade_decide")
+            .put("trade_id",tradeId).put("decision",decision).put("request_id",rid)
+        if(socket?.send(payload.toString())!=true)return false
+        tradeBusy=true
+        pendingTradeRequest=rid
+        tradeError=null
+        tradeFeedback=null
+        return true
+    }
+
     fun openChat() {
         chatVisible = true
         chatUnread = 0
@@ -609,6 +761,17 @@ class GameClient(context: Context) {
         requestedProfileId=null
         profileLoading=false
         profileError=null
+        notices=emptyList()
+        unreadNotices=0
+        noticesHasMore=false
+        trades=emptyList()
+        tradeTarget=null
+        tradeTargetLoading=false
+        tradeSearchPlayers=emptyList()
+        tradeBusy=false
+        tradeError=null
+        tradeFeedback=null
+        pendingTradeRequest=null
     }
 
     suspend fun logout() {
