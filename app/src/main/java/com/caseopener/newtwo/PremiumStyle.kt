@@ -28,15 +28,15 @@ import androidx.compose.ui.platform.LocalContext
 import kotlin.math.max
 import kotlin.math.min
 
-internal val DarkBg = Color(0xFF090816)
-internal val DarkPanel = Color(0xFF19132C)
-internal val LighterPanel = Color(0xFF241A3D)
-internal val NeonViolet = Color(0xFFD459FF)
-internal val NeonBlue = Color(0xFF28CFFF)
-internal val NeonGold = Color(0xFFFFCB3D)
-internal val PaleText = Color(0xFFBBB4D6)
-internal val SoftWhite = Color(0xFFF8F5FF)
-internal val WarningRed = Color(0xFFFF819A)
+internal val DarkBg = Color(0xFF08141D)
+internal val DarkPanel = Color(0xFF122431)
+internal val LighterPanel = Color(0xFF1A3441)
+internal val NeonViolet = Color(0xFF65E3D4)
+internal val NeonBlue = Color(0xFF75B8FA)
+internal val NeonGold = Color(0xFFF5C777)
+internal val PaleText = Color(0xFFA9BECA)
+internal val SoftWhite = Color(0xFFF2F8FC)
+internal val WarningRed = Color(0xFFFF8490)
 
 internal val premiumScheme = darkColorScheme(
     primary = NeonGold,
@@ -55,7 +55,7 @@ internal fun rarityHue(name: String): Color = when(name.lowercase()) {
     "мифический", "mythic", "сверхредкий" -> Color(0xFFFF58BF)
     "эпический", "epic" -> NeonViolet
     "редкий", "rare" -> NeonBlue
-    else -> Color(0xFFB4ACCF)
+    else -> Color(0xFFB4C3D1)
 }
 
 internal fun progressLevel(openings: Int): Int = openings.coerceAtLeast(0) / 20 + 1
@@ -71,11 +71,11 @@ internal fun NeonPanel(
         modifier = modifier.clip(RoundedCornerShape(21.dp))
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF231630), DarkPanel)
+                    listOf(Color(0xFF18313B), DarkPanel)
                 )
             )
-            .border(1.dp, accent.copy(alpha=0.51f), RoundedCornerShape(21.dp))
-            .padding(13.dp),
+            .border(1.dp, accent.copy(alpha=0.23f), RoundedCornerShape(21.dp))
+            .padding(16.dp),
         content = content
     )
 }
@@ -88,8 +88,9 @@ internal fun SectionHeading(
     onAction: (() -> Unit)? = null
 ) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("✦", color = NeonGold, fontSize = 20.sp)
-        Spacer(Modifier.width(7.dp))
+        Box(Modifier.width(4.dp).height(20.dp)
+            .clip(RoundedCornerShape(5.dp)).background(NeonViolet))
+        Spacer(Modifier.width(9.dp))
         Text(name, color = SoftWhite, fontSize = 18.sp,
             fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), maxLines=2)
         if (action != null && onAction != null) {
@@ -109,11 +110,11 @@ internal fun GoldButton(
     Button(
         onClick=onClick, enabled=enabled, modifier=modifier.heightIn(min=49.dp),
         shape=RoundedCornerShape(14.dp),
-        border=BorderStroke(1.dp, if(enabled) NeonGold else PaleText),
+        border=BorderStroke(1.dp, if(enabled) NeonGold.copy(alpha=0.45f) else PaleText.copy(alpha=0.2f)),
         colors=ButtonDefaults.buttonColors(
-            containerColor=if(enabled) Color(0xFF4B2C0A) else Color(0xFF292337),
+            containerColor=if(enabled) Color(0xFF665026) else Color(0xFF293940),
             contentColor=if(enabled) NeonGold else PaleText,
-            disabledContainerColor=Color(0xFF292337),
+            disabledContainerColor=Color(0xFF293940),
             disabledContentColor=PaleText
         )
     ) { Text(text, fontWeight=FontWeight.ExtraBold, maxLines=1, fontSize=13.sp) }
@@ -122,7 +123,7 @@ internal fun GoldButton(
 @Composable
 internal fun GoldPrice(value: Int, size: Int = 16) {
     Surface(
-        color=Color(0xFF35240E), shape=RoundedCornerShape(11.dp),
+        color=Color(0xFF3B3020), shape=RoundedCornerShape(11.dp),
         border=BorderStroke(1.dp, NeonGold.copy(alpha=0.8f))
     ) {
         Text("🪙 "+value.toString(), color=NeonGold, fontWeight=FontWeight.Black,
@@ -149,7 +150,7 @@ internal fun GameArt(
                 .build(),
             contentDescription=null,
             modifier=modifier.clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF291646)),
+                .background(Color(0xFF233E45)),
             contentScale=ContentScale.Crop
         )
         return
@@ -158,7 +159,7 @@ internal fun GameArt(
     // cases/skins, including their image URLs; emoji is a neutral placeholder.
     Box(
         modifier.clip(RoundedCornerShape(16.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF4E1B77),Color(0xFF111638)))),
+            .background(Brush.linearGradient(listOf(Color(0xFF1F4B58),Color(0xFF10232E)))),
         contentAlignment=Alignment.Center
     ) {
         Text(emoji, fontSize=52.sp, color=SoftWhite)
