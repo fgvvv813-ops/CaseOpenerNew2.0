@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -37,3 +37,12 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publish direct APK download in GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk CaseOpener-New-2.0.apk
+          gh release create "build-${GITHUB_RUN_NUMBER}" "CaseOpener-New-2.0.apk" \
+            --title "CaseOpener New 2.0 - Build ${GITHUB_RUN_NUMBER}" \
+            --notes "Automated Android debug build. Download CaseOpener-New-2.0.apk and install on Android." \
+            --latest
