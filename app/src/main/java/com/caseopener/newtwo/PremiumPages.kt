@@ -44,32 +44,36 @@ internal fun PremiumHome(
                 Modifier.fillMaxWidth().heightIn(min=200.dp)
                     .clip(RoundedCornerShape(23.dp))
                     .background(
-                        Brush.horizontalGradient(listOf(Color(0xFF351454),Color(0xFF231027),Color(0xFF3B1D0A)))
+                        Brush.horizontalGradient(listOf(Color(0xFF214953),Color(0xFF14323E),Color(0xFF2A2F30)))
                     )
-                    .border(1.dp,NeonViolet.copy(alpha=0.8f),RoundedCornerShape(23.dp))
+                    .border(1.dp,NeonViolet.copy(alpha=0.28f),RoundedCornerShape(23.dp))
             ) {
-                val compact=maxWidth < 370.dp
-                Row(Modifier.fillMaxWidth().padding(17.dp),
+                val compact=maxWidth < 430.dp
+                Row(Modifier.fillMaxWidth().padding(if(compact)18.dp else 24.dp),
                     verticalAlignment=Alignment.CenterVertically) {
-                    Column(Modifier.weight(1.17f)) {
-                        Text("Добро пожаловать",fontSize=if(compact)19.sp else 22.sp,
+                    Column(Modifier.weight(if(compact)1f else 1.2f)) {
+                        Text("Твоя коллекция начинается здесь",fontSize=if(compact)22.sp else 27.sp,
                             color=SoftWhite,fontWeight=FontWeight.Black,maxLines=2)
-                        Text("в CaseOpener New 2.0!",color=NeonGold,
-                            fontSize=if(compact)16.sp else 18.sp,
+                        Text("CASEOPENER 2.0",color=NeonGold,
+                            fontSize=if(compact)13.sp else 16.sp,
                             fontWeight=FontWeight.Black,maxLines=2)
                         Spacer(Modifier.height(8.dp))
-                        Text("Открывай кейсы, собирай скины и находи легендарные награды.",
+                        Text("Открывай коллекции, собирай редкие предметы и обменивайся с игроками.",
                             color=SoftWhite,fontSize=12.sp,maxLines=4)
                         Spacer(Modifier.height(13.dp))
-                        GoldButton(text="ОТКРЫТЬ КЕЙСЫ  »",onClick=onOpenCases,
+                        GoldButton(text="Перейти к кейсам  ›",onClick=onOpenCases,
                             modifier=Modifier.fillMaxWidth())
                     }
-                    Spacer(Modifier.width(5.dp))
-                    GameArt(
-                        imagePath="",emoji="👑",
-                        modifier=Modifier.weight(0.88f).height(160.dp),
-                        caseId="legend"
-                    )
+                    if(!compact) {
+                        Spacer(Modifier.width(15.dp))
+                        val featured=cases.firstOrNull()
+                        GameArt(
+                            imagePath=featured?.imageUrl.orEmpty(),
+                            emoji=featured?.emoji ?: "✦",
+                            modifier=Modifier.weight(0.86f).height(176.dp),
+                            caseId=featured?.id.orEmpty()
+                        )
+                    }
                 }
             }
         }
@@ -119,13 +123,7 @@ internal fun PremiumHome(
                     NeonBlue,Modifier.weight(1f))
             }
         }
-        item {
-            OutlinedButton(
-                onClick=onNotes,modifier=Modifier.fillMaxWidth(),
-                shape=RoundedCornerShape(14.dp),
-                border=BorderStroke(1.dp,NeonViolet.copy(alpha=0.75f))
-            ) {Text("Что нового в версии "+BuildConfig.VERSION_NAME+"?",color=NeonViolet)}
-        }
+
     }
 }
 
@@ -226,14 +224,14 @@ internal fun PremiumCases(
                                 fontWeight=if(filter==option)FontWeight.Bold else FontWeight.Normal)},
                             shape=RoundedCornerShape(11.dp),
                             colors=FilterChipDefaults.filterChipColors(
-                                selectedContainerColor=Color(0xFF6A3A08),
+                                selectedContainerColor=Color(0xFF3D3C2B),
                                 selectedLabelColor=NeonGold,
                                 containerColor=DarkPanel,
                                 labelColor=PaleText
                             ),
                             border=FilterChipDefaults.filterChipBorder(
                                 enabled=true,selected=filter==option,
-                                borderColor=Color(0xFF584778),
+                                borderColor=Color(0xFF355560),
                                 selectedBorderColor=NeonGold
                             )
                         )
