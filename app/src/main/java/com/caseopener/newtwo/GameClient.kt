@@ -237,6 +237,18 @@ class GameClient(context: Context) {
     var rewardCaseId by mutableStateOf<String?>(null)
         private set
 
+    // Opening 2-5 cases uses the existing server-authoritative single-case
+    // WebSocket command sequentially. Never predict drops or debit locally.
+    var batchOpenTarget by mutableIntStateOf(0)
+        private set
+    var batchOpenRewards by mutableStateOf<List<OwnedSkin>>(emptyList())
+        private set
+    var batchOpenDone by mutableStateOf(false)
+        private set
+    var batchOpenInterrupted by mutableStateOf(false)
+        private set
+    private var batchOpenCaseId: String? = null
+
     var chatMessages by mutableStateOf<List<ChatMessage>>(emptyList())
         private set
     var chatLoaded by mutableStateOf(false)
@@ -390,6 +402,11 @@ class GameClient(context: Context) {
         }
         AppVisibility.websocketConnected = false
         status = "Нет связи с сервером"
+        if (batchOpenTarget > 1 && !batchOpenDone) {
+            batchOpenInterrupted = true
+            batchOpenDone = true
+            error = "Соединение прервано. Проверь инвентарь: сервер мог успеть обработать последнее открытие."
+        }
         opening = false
         selling = false
         pendingOpenRequest = null
@@ -548,10 +565,24 @@ class GameClient(context: Context) {
                         openings = event.getInt("openings"),revision=revision,
                         inventory=listOf(item)+before.inventory)
                 }
-                if (event.optString("request_id") == pendingOpenRequest) {
-                    opening = false
+                if (event.optString("request_id") == pendingOpenRequest && pendingOpenRequest != null) {
                     pendingOpenRequest = null
-                    reward = OwnedSkin.from(event.getJSONObject("item"))
+                    val received = OwnedSkin.from(event.getJSONObject("item"))
+                    if (batchOpenTarget > 1) {
+                        batchOpenRewards = batchOpenRewards + received
+                        if (batchOpenRewards.size >= batchOpenTarget) {
+                            opening = false
+                            batchOpenDone = true
+                        } else if (!sendOpenRequest(batchOpenCaseId.orEmpty())) {
+                            opening = false
+                            batchOpenDone = true
+                            batchOpenInterrupted = true
+                            error = "Открыто ${batchOpenRewards.size} из $batchOpenTarget. Остальные не запущены: проверь баланс и соединение."
+                        }
+                    } else {
+                        opening = false
+                        reward = received
+                    }
                 }
             }
             "item_sold" -> {
@@ -568,9 +599,13 @@ class GameClient(context: Context) {
             }
             "error" -> {
                 error = event.optString("message","Ошибка сервера")
-                if (event.optString("request_id")==pendingOpenRequest) {
+                if (pendingOpenRequest != null && event.optString("request_id")==pendingOpenRequest) {
                     pendingOpenRequest = null
                     opening = false
+                    if (batchOpenTarget > 1) {
+                        batchOpenInterrupted = true
+                        batchOpenDone = true
+                    }
                 }
                 if (event.optString("request_id")==pendingSellRequest) {
                     pendingSellRequest = null
@@ -587,19 +622,53 @@ class GameClient(context: Context) {
         catalogVersion=version
     }
 
-    fun openCase(caseId: String): Boolean {
-        if (status != "Онлайн" || opening || selling || socket == null) return false
+    private fun sendOpenRequest(caseId: String): Boolean {
+        if (status != "Онлайн" || socket == null || pendingOpenRequest != null) return false
         val gameCase = cases.firstOrNull { it.id == caseId } ?: return false
-        if (state == null || state!!.balance < gameCase.cost) return false
-        val rid=UUID.randomUUID().toString()
-        val payload=JSONObject().put("type","open_case").put("case_id",caseId).put("request_id",rid)
+        if ((state?.balance?.toLong() ?: -1L) < gameCase.cost.toLong()) return false
+        val rid = UUID.randomUUID().toString()
+        val payload = JSONObject().put("type", "open_case").put("case_id", caseId)
+            .put("request_id", rid)
         if (socket?.send(payload.toString()) != true) return false
-        pendingOpenRequest=rid
-        rewardCaseId=caseId
-        reward=null
-        opening=true
-        error=null
+        pendingOpenRequest = rid
         return true
+    }
+
+    fun openCase(caseId: String, quantity: Int = 1): Boolean {
+        if (quantity !in 1..5 || status != "Онлайн" || opening || selling ||
+            pendingOpenRequest != null || batchOpenTarget != 0) return false
+        val gameCase = cases.firstOrNull { it.id == caseId } ?: return false
+        val cost = gameCase.cost.toLong() * quantity
+        if (cost > (state?.balance?.toLong() ?: -1L)) {
+            error = "Недостаточно монет для открытия $quantity кейсов."
+            return false
+        }
+        rewardCaseId = caseId
+        reward = null
+        batchOpenTarget = if (quantity > 1) quantity else 0
+        batchOpenRewards = emptyList()
+        batchOpenDone = false
+        batchOpenInterrupted = false
+        batchOpenCaseId = if (quantity > 1) caseId else null
+        error = null
+        opening = true
+        if (!sendOpenRequest(caseId)) {
+            opening = false
+            batchOpenTarget = 0
+            batchOpenCaseId = null
+            error = "Не удалось отправить открытие на сервер. Повтори попытку."
+            return false
+        }
+        return true
+    }
+
+    fun acknowledgeBatchOpen() {
+        if (!batchOpenDone) return
+        batchOpenTarget = 0
+        batchOpenRewards = emptyList()
+        batchOpenDone = false
+        batchOpenInterrupted = false
+        batchOpenCaseId = null
     }
 
     fun sellItem(item: OwnedSkin) {
@@ -761,6 +830,11 @@ class GameClient(context: Context) {
         cases=emptyList()
         status="Нет подключения"
         reward=null
+        batchOpenTarget=0
+        batchOpenRewards=emptyList()
+        batchOpenDone=false
+        batchOpenInterrupted=false
+        batchOpenCaseId=null
         opening=false
         selling=false
         pendingOpenRequest=null
