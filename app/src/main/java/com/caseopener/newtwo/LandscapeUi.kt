@@ -523,25 +523,29 @@ internal fun LandscapeLogin(client:GameClient) {
     var username by rememberSaveable{mutableStateOf("")}
     var password by remember{mutableStateOf("")}
     var visible by remember{mutableStateOf(false)}
-    Row(Modifier.fillMaxSize().padding(horizontal=18.dp,vertical=10.dp),
-        horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val compact=maxWidth<700.dp
+    Row(Modifier.fillMaxSize().padding(
+        horizontal=if(compact)8.dp else 18.dp,
+        vertical=if(compact)5.dp else 10.dp),
+        horizontalArrangement=Arrangement.spacedBy(if(compact)7.dp else 16.dp)) {
         Column(
-            Modifier.weight(.52f).fillMaxHeight(),
+            Modifier.weight(if(compact).42f else .52f).fillMaxHeight(),
             verticalArrangement=Arrangement.Center,
             horizontalAlignment=Alignment.Start
         ) {
-            Text("CASE OPENER",fontSize=32.sp,fontWeight=FontWeight.Black,
+            Text("CASE OPENER",fontSize=if(compact)22.sp else 32.sp,fontWeight=FontWeight.Black,
                 color=SoftWhite,maxLines=1)
-            Text("N E W   2 . 0",fontSize=15.sp,color=NeonGold,
+            Text("N E W   2 . 0",fontSize=if(compact)12.sp else 15.sp,color=NeonGold,
                 fontWeight=FontWeight.Black)
             Spacer(Modifier.height(12.dp))
-            Text("КЕЙСЫ  •  СКИНЫ  •  ОБМЕНЫ",fontSize=12.sp,
+            Text("КЕЙСЫ  •  СКИНЫ  •  ОБМЕНЫ",fontSize=if(compact)10.sp else 12.sp,
                 fontWeight=FontWeight.Bold,color=NeonBlue,maxLines=1)
             Spacer(Modifier.height(6.dp))
             Text("Коллекция, баланс и прогресс сохраняются в твоём аккаунте.",
                 fontSize=12.sp,color=PaleText,maxLines=3)
         }
-        LandscapePanel(Modifier.weight(.48f).fillMaxHeight()) {
+        LandscapePanel(Modifier.weight(if(compact).58f else .48f).fillMaxHeight()) {
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(horizontal=12.dp,vertical=8.dp),
@@ -590,6 +594,7 @@ internal fun LandscapeLogin(client:GameClient) {
                     fontSize=10.sp,color=NeonGold)
             }
         }
+    }
     }
 }
 
