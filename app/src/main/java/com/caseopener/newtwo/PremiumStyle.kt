@@ -80,7 +80,7 @@ internal fun HexPatternBackground(modifier: Modifier = Modifier) {
             val cy=row*stepY
             val vertices=(0..5).map { index ->
                 val angle=Math.PI/3.0*index
-                Offset(cx+(radius*cos(angle)).toFloat(),cy+(radius*sin(angle)).toFloat())
+                Offset(cx+(radius.toDouble()*cos(angle)).toFloat(),cy+(radius.toDouble()*sin(angle)).toFloat())
             }
             for(i in 0..5) drawLine(
                 color=Color(0xFF42627E).copy(alpha=0.12f),
