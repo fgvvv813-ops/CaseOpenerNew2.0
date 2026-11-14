@@ -285,6 +285,12 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                                 else "Системные уведомления отключены",
                                 color=if(permissionOK)NeonViolet else WarningRed,fontSize=12.sp
                             )
+                            Text(
+                                if(PushManager.configured()) "FCM: подключён в приложении"
+                                else "FCM: для фоновой доставки нужна настройка Firebase",
+                                color=if(PushManager.configured())NeonViolet else PaleText,
+                                fontSize=11.sp
+                            )
                             OutlinedButton(
                                 onClick={
                                     val intent=Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
