@@ -155,7 +155,7 @@ internal fun PremiumChat(
                 shape=RoundedCornerShape(16.dp),
                 colors=OutlinedTextFieldDefaults.colors(
                     focusedBorderColor=NeonViolet,
-                    unfocusedBorderColor=Color(0xFF5A446B)
+                    unfocusedBorderColor=Color(0xFF38616C)
                 )
             )
             GoldButton(
@@ -190,9 +190,9 @@ private fun ChatBubble(message:ChatMessage,own:Boolean,onUser:()->Unit) {
                 bottomEnd=if(own)4.dp else 16.dp,
                 bottomStart=if(own)16.dp else 4.dp
             ),
-            color=if(own)Color(0xFF402058) else Color(0xFF272039),
+            color=if(own)Color(0xFF204452) else Color(0xFF1B303C),
             border=BorderStroke(1.dp,
-                if(own)NeonViolet.copy(alpha=0.7f) else Color(0xFF4E4565))
+                if(own)NeonViolet.copy(alpha=0.7f) else Color(0xFF325460))
         ) {
             Column(Modifier.padding(horizontal=12.dp,vertical=9.dp),
                 verticalArrangement=Arrangement.spacedBy(4.dp)) {
