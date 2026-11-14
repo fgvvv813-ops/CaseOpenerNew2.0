@@ -1,6 +1,9 @@
 package com.caseopener.newtwo
 
 import androidx.compose.foundation.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -135,7 +138,8 @@ private fun LandscapeHudButton(label:String,alert:Boolean,onClick:()->Unit,size:
 
 @Composable
 internal fun LandscapeNavigation(
-    selected:String,unread:Int,pending:Int,onSelect:(String)->Unit
+    selected:String,unread:Int,pending:Int,onSelect:(String)->Unit,
+    reducedMotion:Boolean=false
 ) {
     val options=listOf(
         Triple("home","⌂","ГЛАВНАЯ"),
@@ -158,9 +162,13 @@ internal fun LandscapeNavigation(
                 (selected=="player" && key=="chat") ||
                 (selected=="profile" && key=="menu")
             val count=when(key) {"chat"->unread;"trades"->pending;else->0}
+            val navTint by animateColorAsState(
+                targetValue=if(active)Color(0xFF456B93) else Color.Transparent,
+                animationSpec=if(reducedMotion)snap() else tween(180),label="GameTab"
+            )
             Column(
                 Modifier.weight(1f).fillMaxHeight()
-                    .background(if(active)Color(0xFF456B93) else Color.Transparent)
+                    .background(navTint)
                     .clickable {onSelect(key)}
                     .padding(top=3.dp),
                 horizontalAlignment=Alignment.CenterHorizontally,
@@ -209,10 +217,10 @@ internal fun LandscapeHome(
                 Text("CASE OPENER",fontWeight=FontWeight.Black,color=SoftWhite,
                     fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f),
                     fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)
-                Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
+                if(maxWidth>=680.dp) Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
                 Spacer(Modifier.width(12.dp))
                 Text("ВСЕ КЕЙСЫ  ›",Modifier.clickable(onClick=onCases),
-                    color=NeonGold,fontSize=11.sp,fontWeight=FontWeight.Bold)
+                    color=NeonGold,fontSize=if(maxWidth<680.dp)10.sp else 11.sp,fontWeight=FontWeight.Bold)
             }
             if(client.cases.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center){
@@ -292,6 +300,7 @@ internal fun LandscapeCatalog(
             Text("КЕЙСЫ",fontWeight=FontWeight.Black,fontSize=18.sp,
                 fontStyle=androidx.compose.ui.text.font.FontStyle.Italic,
                 modifier=Modifier.weight(1f))
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
             listOf("Все","Доступные","Легендарные").forEach {option->
                 val active=filter==option
                 Surface(
@@ -303,6 +312,7 @@ internal fun LandscapeCatalog(
                     Text(option,fontSize=10.sp,color=if(active)SoftWhite else PaleText,
                         modifier=Modifier.padding(horizontal=12.dp,vertical=5.dp))
                 }
+            }
             }
         }
         Spacer(Modifier.height(7.dp))
