@@ -33,13 +33,13 @@ import androidx.compose.ui.platform.LocalContext
 import kotlin.math.max
 import kotlin.math.min
 
-internal val DarkBg = Color(0xFF0C1421)
-internal val DarkPanel = Color(0xFF19283B)
-internal val LighterPanel = Color(0xFF263B53)
-internal val NeonViolet = Color(0xFF5CBCE8)
-internal val NeonBlue = Color(0xFF84B9EC)
+internal val DarkBg = Color(0xFF0D1B2B)
+internal val DarkPanel = Color(0xFF1C344F)
+internal val LighterPanel = Color(0xFF335472)
+internal val NeonViolet = Color(0xFF68B7E7)
+internal val NeonBlue = Color(0xFF9DCBF4)
 internal val NeonGold = Color(0xFFF4C35D)
-internal val PaleText = Color(0xFF9EB1C6)
+internal val PaleText = Color(0xFFB3C7DA)
 internal val SoftWhite = Color(0xFFF4F7FC)
 internal val WarningRed = Color(0xFFFF7186)
 
@@ -70,7 +70,7 @@ internal fun progressFraction(openings: Int): Float = (openings.coerceAtLeast(0)
 @Composable
 internal fun HexPatternBackground(modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val radius=21.dp.toPx()
+        val radius=20.dp.toPx()
         val stepX=radius*3f
         val stepY=radius*1.73205f
         val rows=(size.height/stepY).toInt()+2
@@ -83,7 +83,7 @@ internal fun HexPatternBackground(modifier: Modifier = Modifier) {
                 Offset(cx+(radius.toDouble()*cos(angle)).toFloat(),cy+(radius.toDouble()*sin(angle)).toFloat())
             }
             for(i in 0..5) drawLine(
-                color=Color(0xFF42627E).copy(alpha=0.12f),
+                color=Color(0xFF7AA1C4).copy(alpha=0.24f),
                 start=vertices[i],end=vertices[(i+1)%6],strokeWidth=1.dp.toPx()
             )
         }
@@ -103,7 +103,7 @@ internal fun NeonPanel(
                     listOf(Color(0xFF273A52), DarkPanel)
                 )
             )
-            .border(1.dp, accent.copy(alpha=0.38f), RoundedCornerShape(21.dp))
+            .border(1.dp, accent.copy(alpha=0.38f), RoundedCornerShape(12.dp))
             .padding(16.dp),
         content = content
     )
@@ -179,8 +179,8 @@ internal fun GameArt(
                 .build(),
             contentDescription=null,
             modifier=modifier.clip(RoundedCornerShape(9.dp))
-                .background(Color(0xFF263C55)),
-            contentScale=ContentScale.Crop
+                .background(Color(0xFF667789)),
+            contentScale=ContentScale.Fit
         )
         return
     }
@@ -188,7 +188,7 @@ internal fun GameArt(
     // cases/skins, including their image URLs; emoji is a neutral placeholder.
     Box(
         modifier.clip(RoundedCornerShape(9.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF365474),Color(0xFF17263B)))),
+            .background(Brush.linearGradient(listOf(Color(0xFF687788),Color(0xFF374C65)))),
         contentAlignment=Alignment.Center
     ) {
         Text(emoji, fontSize=52.sp, color=SoftWhite)

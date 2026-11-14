@@ -30,9 +30,9 @@ import kotlinx.coroutines.launch
 // The original case-opening game's landscape hierarchy: a slim player HUD,
 // horizontal case showcase, dark navy metallic panels, and compact bottom tabs.
 // All inventory, currency, case art and outcomes are still sourced from GameClient.
-private val FrameBorder = Color(0xFF426080)
-private val FrameInterior = Color(0xFF1C304A)
-private val ActionGreen = Color(0xFF558B36)
+private val FrameBorder = Color(0xFF6686A7)
+private val FrameInterior = Color(0xFF203C5B)
+private val ActionGreen = Color(0xFF5B9436)
 
 @Composable
 internal fun LandscapeHeader(
@@ -150,7 +150,7 @@ private fun LandscapePanel(
     content:@Composable ColumnScope.()->Unit
 ) {
     val base=modifier.clip(RoundedCornerShape(5.dp))
-        .background(Brush.verticalGradient(listOf(Color(0xFF344B67),FrameInterior)))
+        .background(Brush.verticalGradient(listOf(Color(0xFF405F80),FrameInterior)))
         .border(1.dp,accent.copy(alpha=.85f),RoundedCornerShape(5.dp))
     Column(if(onClick!=null)base.clickable(onClick=onClick) else base,content=content)
 }
@@ -170,7 +170,8 @@ internal fun LandscapeHome(
         Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("CASE OPENER",fontWeight=FontWeight.Black,color=SoftWhite,
-                    fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f))
+                    fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f),
+                    fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)
                 Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
                 Spacer(Modifier.width(12.dp))
                 Text("ВСЕ КЕЙСЫ  ›",Modifier.clickable(onClick=onCases),
@@ -215,9 +216,10 @@ private fun LandscapeShortcut(glyph:String,title:String,modifier:Modifier,onClic
 
 @Composable
 private fun LandscapeCaseCard(gameCase:GameCase,onClick:()->Unit) {
-    LandscapePanel(Modifier.width(156.dp).fillMaxHeight(),onClick=onClick) {
-        Box(Modifier.weight(1f).fillMaxWidth().padding(5.dp)) {
-            GameArt(gameCase.imageUrl,gameCase.emoji,Modifier.fillMaxSize(),gameCase.id)
+    LandscapePanel(Modifier.width(160.dp).fillMaxHeight(),onClick=onClick) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(4.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF838C98),Color(0xFF596775))))) {
+            GameArt(gameCase.imageUrl,gameCase.emoji,Modifier.fillMaxSize().padding(3.dp),gameCase.id)
         }
         Column(Modifier.fillMaxWidth().background(Color(0xFF122237))
             .padding(horizontal=8.dp,vertical=4.dp)) {
@@ -227,8 +229,9 @@ private fun LandscapeCaseCard(gameCase:GameCase,onClick:()->Unit) {
                 fontWeight=FontWeight.Bold,maxLines=1)
         }
         Box(
-            Modifier.fillMaxWidth().height(26.dp)
-                .background(ActionGreen).clickable(onClick=onClick),
+            Modifier.fillMaxWidth().height(29.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFF74A447),ActionGreen)))
+                .clickable(onClick=onClick),
             contentAlignment=Alignment.Center
         ) {
             Text("ПОСМОТРЕТЬ",fontSize=10.sp,color=Color.White,fontWeight=FontWeight.Black)
@@ -250,6 +253,7 @@ internal fun LandscapeCatalog(
     Column(modifier.fillMaxSize().padding(horizontal=12.dp,vertical=7.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             Text("КЕЙСЫ",fontWeight=FontWeight.Black,fontSize=18.sp,
+                fontStyle=androidx.compose.ui.text.font.FontStyle.Italic,
                 modifier=Modifier.weight(1f))
             listOf("Все","Доступные","Легендарные").forEach {option->
                 val active=filter==option
@@ -278,9 +282,12 @@ internal fun LandscapeCatalog(
                 contentPadding=PaddingValues(bottom=8.dp)
             ) {
                 items(cases,key={it.id}) { gameCase->
-                    LandscapePanel(Modifier.fillMaxWidth().height(158.dp),onClick={onCase(gameCase.id)}) {
-                        GameArt(gameCase.imageUrl,gameCase.emoji,
-                            Modifier.fillMaxWidth().weight(1f).padding(5.dp),gameCase.id)
+                    LandscapePanel(Modifier.fillMaxWidth().height(156.dp),onClick={onCase(gameCase.id)}) {
+                        Box(Modifier.fillMaxWidth().weight(1f).padding(4.dp)
+                            .background(Brush.verticalGradient(listOf(Color(0xFF88929F),Color(0xFF536476))))) {
+                            GameArt(gameCase.imageUrl,gameCase.emoji,
+                                Modifier.fillMaxSize().padding(3.dp),gameCase.id)
+                        }
                         Text(gameCase.name,fontSize=12.sp,fontWeight=FontWeight.Bold,
                             modifier=Modifier.padding(horizontal=8.dp),
                             maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -288,7 +295,7 @@ internal fun LandscapeCatalog(
                             verticalAlignment=Alignment.CenterVertically) {
                             Text("◈ "+gameCase.cost,fontSize=11.sp,color=NeonGold,
                                 fontWeight=FontWeight.Black,modifier=Modifier.weight(1f))
-                            Text("ОТКРЫТЬ ›",fontSize=10.sp,color=Color(0xFF9BDB81))
+                            Text("ОТКРЫТЬ ›",fontSize=10.sp,color=Color(0xFFB1E987),fontWeight=FontWeight.Bold)
                         }
                     }
                 }
@@ -299,69 +306,126 @@ internal fun LandscapeCatalog(
 
 @Composable
 internal fun LandscapeCaseDetail(
-    client:GameClient, gameCase:GameCase, modifier:Modifier,
+    client:GameClient,gameCase:GameCase,modifier:Modifier,
     onBack:()->Unit
 ) {
+    var quantity by rememberSaveable(gameCase.id){mutableIntStateOf(1)}
+    val cost=gameCase.cost.toLong()*quantity
+    val balance=client.state?.balance?.toLong()?:0L
     val totalWeight=gameCase.skins.sumOf{it.weight.coerceAtLeast(0)}.coerceAtLeast(1)
-    Row(modifier.fillMaxSize().padding(9.dp),
-        horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-        LandscapePanel(Modifier.weight(.37f).fillMaxHeight(),accent=NeonGold) {
-            Row(Modifier.fillMaxWidth().height(31.dp).padding(horizontal=7.dp),
-                verticalAlignment=Alignment.CenterVertically){
-                Text("‹ НАЗАД",color=NeonGold,fontSize=11.sp,
-                    modifier=Modifier.clickable(onClick=onBack))
-                Spacer(Modifier.width(8.dp))
-                Text(gameCase.name,fontSize=14.sp,fontWeight=FontWeight.Black,
-                    maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+    val available=client.status=="Онлайн" && !client.opening &&
+        !client.selling && client.batchOpenTarget==0 &&
+        gameCase.skins.isNotEmpty() && balance>=cost
+    Row(modifier.fillMaxSize().padding(horizontal=10.dp,vertical=7.dp),
+        horizontalArrangement=Arrangement.spacedBy(9.dp)) {
+        LandscapePanel(Modifier.weight(.41f).fillMaxHeight(),accent=Color(0xFF8098B2)) {
+            Row(
+                Modifier.fillMaxWidth().height(26.dp)
+                    .background(Color(0xFF1C324D)).padding(horizontal=8.dp),
+                verticalAlignment=Alignment.CenterVertically
+            ) {
+                Text("‹",color=NeonGold,fontSize=20.sp,
+                    modifier=Modifier.clickable(onClick=onBack).padding(end=7.dp))
+                Text(gameCase.name,fontSize=13.sp,fontWeight=FontWeight.Black,
+                    fontStyle=androidx.compose.ui.text.font.FontStyle.Italic,
+                    color=SoftWhite,maxLines=1,
+                    overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+                Text("◈ "+gameCase.cost,color=NeonGold,fontSize=11.sp)
             }
-            GameArt(gameCase.imageUrl,gameCase.emoji,
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal=7.dp),gameCase.id)
-            Row(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=5.dp),
-                verticalAlignment=Alignment.CenterVertically) {
-                Text("◈ "+gameCase.cost,color=NeonGold,fontWeight=FontWeight.Black,
-                    fontSize=13.sp,modifier=Modifier.weight(1f))
-                Button(
-                    onClick={client.openCase(gameCase.id)},
-                    enabled=client.status=="Онлайн" && !client.opening && !client.selling &&
-                        gameCase.skins.isNotEmpty() && (client.state?.balance?:0)>=gameCase.cost,
-                    modifier=Modifier.height(34.dp),
-                    contentPadding=PaddingValues(horizontal=12.dp),
-                    shape=RoundedCornerShape(4.dp),
-                    colors=ButtonDefaults.buttonColors(containerColor=ActionGreen)
-                ) {
-                    Text(if(client.opening)"ОТКРЫВАЕМ…" else "ОТКРЫТЬ КЕЙС",
-                        fontSize=11.sp,fontWeight=FontWeight.Black)
+            Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal=5.dp,vertical=4.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFF88909B),Color(0xFF565F6B)))),
+                contentAlignment=Alignment.Center) {
+                GameArt(gameCase.imageUrl,gameCase.emoji,
+                    Modifier.fillMaxSize().padding(2.dp),gameCase.id)
+            }
+            Row(Modifier.fillMaxWidth().height(27.dp).padding(horizontal=6.dp),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                Text("КОЛ-ВО",fontSize=9.sp,fontWeight=FontWeight.Black,
+                    color=PaleText,modifier=Modifier.width(50.dp))
+                (1..5).forEach { count ->
+                    val active=quantity==count
+                    Surface(
+                        modifier=Modifier.weight(1f).fillMaxHeight()
+                            .clickable(enabled=!client.opening && client.batchOpenTarget==0){
+                                quantity=count
+                            },
+                        color=if(active)Color(0xFF6286A6) else Color(0xFF1C324D),
+                        shape=RoundedCornerShape(3.dp),
+                        border=BorderStroke(1.dp,if(active)NeonGold else FrameBorder)
+                    ) {
+                        Box(contentAlignment=Alignment.Center){
+                            Text(count.toString(),fontSize=12.sp,
+                                color=if(active)Color.White else PaleText,
+                                fontWeight=FontWeight.Black)
+                        }
+                    }
                 }
             }
-        }
-        Column(Modifier.weight(.63f).fillMaxHeight()) {
-            Row(Modifier.fillMaxWidth().padding(bottom=5.dp),
+            Row(Modifier.fillMaxWidth().padding(horizontal=7.dp,vertical=3.dp),
                 verticalAlignment=Alignment.CenterVertically) {
-                Text("ВОЗМОЖНЫЕ НАГРАДЫ",fontSize=14.sp,fontWeight=FontWeight.Black,
+                Text("ИТОГО: ◈ "+cost,color=NeonGold,
+                    fontSize=12.sp,fontWeight=FontWeight.Black,
                     modifier=Modifier.weight(1f))
-                Text(gameCase.skins.size.toString()+" предметов",fontSize=10.sp,color=PaleText)
+                Text("БАЛАНС: ◈ "+balance,color=PaleText,fontSize=10.sp)
+            }
+            Button(
+                onClick={client.openCase(gameCase.id,quantity)},
+                enabled=available,
+                modifier=Modifier.fillMaxWidth().height(35.dp).padding(horizontal=7.dp),
+                contentPadding=PaddingValues(horizontal=5.dp),
+                shape=RoundedCornerShape(3.dp),
+                border=BorderStroke(1.dp,if(available)Color(0xFF81AA5B) else FrameBorder),
+                colors=ButtonDefaults.buttonColors(
+                    containerColor=Color(0xFF5A9037),
+                    disabledContainerColor=Color(0xFF435260),
+                    contentColor=Color.White
+                )
+            ) {
+                Text(if(client.opening)"ОТКРЫВАЕМ…" else
+                    "ОТКРЫТЬ "+quantity+(when(quantity){1->" КЕЙС";2,3,4->" КЕЙСА";else->" КЕЙСОВ"}),
+                    fontSize=12.sp,fontWeight=FontWeight.Black,maxLines=1)
+            }
+            Spacer(Modifier.height(5.dp))
+        }
+        Column(Modifier.weight(.59f).fillMaxHeight()) {
+            Row(Modifier.fillMaxWidth().height(26.dp)
+                .background(Color(0xFF294460)).padding(horizontal=9.dp),
+                verticalAlignment=Alignment.CenterVertically) {
+                Text("СОДЕРЖИМОЕ КЕЙСА",fontSize=12.sp,
+                    fontWeight=FontWeight.Black,color=SoftWhite,
+                    modifier=Modifier.weight(1f))
+                Text(gameCase.skins.size.toString()+" ПРЕДМЕТОВ",
+                    fontSize=10.sp,color=PaleText)
             }
             LazyVerticalGrid(
-                columns=GridCells.Adaptive(114.dp),
+                columns=GridCells.Adaptive(105.dp),
                 modifier=Modifier.fillMaxSize(),
-                horizontalArrangement=Arrangement.spacedBy(7.dp),
-                verticalArrangement=Arrangement.spacedBy(7.dp)
+                horizontalArrangement=Arrangement.spacedBy(6.dp),
+                verticalArrangement=Arrangement.spacedBy(6.dp),
+                contentPadding=PaddingValues(top=6.dp,bottom=5.dp)
             ) {
-                items(gameCase.skins,key={it.id}) {skin->
+                items(gameCase.skins,key={it.id}){skin->
                     val tint=rarityHue(skin.rarity)
-                    LandscapePanel(Modifier.fillMaxWidth().height(141.dp),accent=tint) {
-                        GameArt(skin.imageUrl,skin.emoji,
-                            Modifier.fillMaxWidth().weight(1f).padding(5.dp))
-                        Text(skin.name,modifier=Modifier.padding(horizontal=6.dp),
-                            fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis,
-                            fontWeight=FontWeight.Bold)
-                        Row(Modifier.fillMaxWidth().padding(horizontal=6.dp,vertical=4.dp)){
-                            Text("◈ "+skin.value,fontSize=10.sp,color=NeonGold,
-                                modifier=Modifier.weight(1f))
-                            Text(String.format(java.util.Locale.US,"%.1f%%",
-                                skin.weight.coerceAtLeast(0)*100.0/totalWeight),
-                                fontSize=10.sp,color=tint)
+                    LandscapePanel(Modifier.fillMaxWidth().height(133.dp),accent=tint) {
+                        Box(Modifier.weight(1f).fillMaxWidth().padding(3.dp)
+                            .background(Brush.verticalGradient(
+                                listOf(Color(0xFF727A88),Color(0xFF444F60))))) {
+                            GameArt(skin.imageUrl,skin.emoji,Modifier.fillMaxSize())
                         }
+                        Column(Modifier.fillMaxWidth().background(Color(0xFF1A2B40))
+                            .padding(horizontal=5.dp,vertical=4.dp)) {
+                            Text(skin.name,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                fontSize=10.sp,fontWeight=FontWeight.Bold,color=SoftWhite)
+                            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                                Text("◈ "+skin.value,fontSize=10.sp,color=NeonGold,
+                                    modifier=Modifier.weight(1f))
+                                Text(String.format(java.util.Locale.US,"%.1f%%",
+                                    skin.weight.coerceAtLeast(0)*100.0/totalWeight),
+                                    fontSize=9.sp,color=tint)
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().height(3.dp).background(tint))
                     }
                 }
             }
