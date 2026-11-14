@@ -1,7 +1,9 @@
 name: Build Android APK
 on:
   push:
-    branches: [main, design/case-opener-classic-ui]
+    branches: [main, design/landscape-only-014]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: write
