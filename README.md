@@ -2,7 +2,14 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.012.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.015.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+
+## Landscape multi-case opening (0.0.015)
+
+- Android UI is landscape-only; the home/catalog/case inspector use compact game-style layouts.
+- In the case inspector choose 1 through 5 openings. The app displays aggregate price before the action.
+- Multi-open uses the authenticated **existing** single-case WebSocket event sequentially; the server remains authoritative over cost and every awarded item.
+- Progress tracks confirmed responses only. A disconnect or acknowledgment timeout stops further requests; the user should verify the server inventory before retrying. There is no unsafe automatic retry.
 
 ## Install
 
