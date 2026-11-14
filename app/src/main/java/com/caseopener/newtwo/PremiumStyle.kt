@@ -21,6 +21,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.cos
+import kotlin.math.sin
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.CachePolicy
@@ -28,15 +33,15 @@ import androidx.compose.ui.platform.LocalContext
 import kotlin.math.max
 import kotlin.math.min
 
-internal val DarkBg = Color(0xFF08141D)
-internal val DarkPanel = Color(0xFF122431)
-internal val LighterPanel = Color(0xFF1A3441)
-internal val NeonViolet = Color(0xFF65E3D4)
-internal val NeonBlue = Color(0xFF75B8FA)
-internal val NeonGold = Color(0xFFF5C777)
-internal val PaleText = Color(0xFFA9BECA)
-internal val SoftWhite = Color(0xFFF2F8FC)
-internal val WarningRed = Color(0xFFFF8490)
+internal val DarkBg = Color(0xFF0C1421)
+internal val DarkPanel = Color(0xFF19283B)
+internal val LighterPanel = Color(0xFF263B53)
+internal val NeonViolet = Color(0xFF5CBCE8)
+internal val NeonBlue = Color(0xFF84B9EC)
+internal val NeonGold = Color(0xFFF4C35D)
+internal val PaleText = Color(0xFF9EB1C6)
+internal val SoftWhite = Color(0xFFF4F7FC)
+internal val WarningRed = Color(0xFFFF7186)
 
 internal val premiumScheme = darkColorScheme(
     primary = NeonGold,
@@ -52,14 +57,38 @@ internal val premiumScheme = darkColorScheme(
 
 internal fun rarityHue(name: String): Color = when(name.lowercase()) {
     "легендарный", "legendary", "элитный" -> NeonGold
-    "мифический", "mythic", "сверхредкий" -> Color(0xFFFF58BF)
-    "эпический", "epic" -> NeonViolet
+    "мифический", "mythic", "сверхредкий" -> Color(0xFFE84D63)
+    "эпический", "epic" -> Color(0xFFB56DE1)
     "редкий", "rare" -> NeonBlue
     else -> Color(0xFFB4C3D1)
 }
 
 internal fun progressLevel(openings: Int): Int = openings.coerceAtLeast(0) / 20 + 1
 internal fun progressFraction(openings: Int): Float = (openings.coerceAtLeast(0) % 20) / 20f
+
+// Low-contrast CS-inspired hexagonal texture: decorative only, never intercepts taps.
+@Composable
+internal fun HexPatternBackground(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val radius=21.dp.toPx()
+        val stepX=radius*3f
+        val stepY=radius*1.73205f
+        val rows=(size.height/stepY).toInt()+2
+        val columns=(size.width/stepX).toInt()+2
+        for(row in 0..rows) for(column in 0..columns) {
+            val cx=column*stepX+(if(row%2==0) 0f else radius*1.5f)
+            val cy=row*stepY
+            val vertices=(0..5).map { index ->
+                val angle=Math.PI/3.0*index
+                Offset(cx+(radius.toDouble()*cos(angle)).toFloat(),cy+(radius.toDouble()*sin(angle)).toFloat())
+            }
+            for(i in 0..5) drawLine(
+                color=Color(0xFF42627E).copy(alpha=0.12f),
+                start=vertices[i],end=vertices[(i+1)%6],strokeWidth=1.dp.toPx()
+            )
+        }
+    }
+}
 
 @Composable
 internal fun NeonPanel(
@@ -68,13 +97,13 @@ internal fun NeonPanel(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
-        modifier = modifier.clip(RoundedCornerShape(21.dp))
+        modifier = modifier.clip(RoundedCornerShape(12.dp))
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF18313B), DarkPanel)
+                    listOf(Color(0xFF273A52), DarkPanel)
                 )
             )
-            .border(1.dp, accent.copy(alpha=0.23f), RoundedCornerShape(21.dp))
+            .border(1.dp, accent.copy(alpha=0.38f), RoundedCornerShape(21.dp))
             .padding(16.dp),
         content = content
     )
@@ -109,12 +138,12 @@ internal fun GoldButton(
 ) {
     Button(
         onClick=onClick, enabled=enabled, modifier=modifier.heightIn(min=49.dp),
-        shape=RoundedCornerShape(14.dp),
+        shape=RoundedCornerShape(8.dp),
         border=BorderStroke(1.dp, if(enabled) NeonGold.copy(alpha=0.45f) else PaleText.copy(alpha=0.2f)),
         colors=ButtonDefaults.buttonColors(
-            containerColor=if(enabled) Color(0xFF665026) else Color(0xFF293940),
-            contentColor=if(enabled) NeonGold else PaleText,
-            disabledContainerColor=Color(0xFF293940),
+            containerColor=if(enabled) Color(0xFF476C34) else Color(0xFF293940),
+            contentColor=if(enabled) SoftWhite else PaleText,
+            disabledContainerColor=Color(0xFF263449),
             disabledContentColor=PaleText
         )
     ) { Text(text, fontWeight=FontWeight.ExtraBold, maxLines=1, fontSize=13.sp) }
@@ -123,7 +152,7 @@ internal fun GoldButton(
 @Composable
 internal fun GoldPrice(value: Int, size: Int = 16) {
     Surface(
-        color=Color(0xFF3B3020), shape=RoundedCornerShape(11.dp),
+        color=Color(0xFF3B3427), shape=RoundedCornerShape(8.dp),
         border=BorderStroke(1.dp, NeonGold.copy(alpha=0.8f))
     ) {
         Text("🪙 "+value.toString(), color=NeonGold, fontWeight=FontWeight.Black,
@@ -149,8 +178,8 @@ internal fun GameArt(
                 .crossfade(true)
                 .build(),
             contentDescription=null,
-            modifier=modifier.clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF233E45)),
+            modifier=modifier.clip(RoundedCornerShape(9.dp))
+                .background(Color(0xFF263C55)),
             contentScale=ContentScale.Crop
         )
         return
@@ -158,8 +187,8 @@ internal fun GameArt(
     // The APK ships no case inventory or case artwork. The server owns all
     // cases/skins, including their image URLs; emoji is a neutral placeholder.
     Box(
-        modifier.clip(RoundedCornerShape(16.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF1F4B58),Color(0xFF10232E)))),
+        modifier.clip(RoundedCornerShape(9.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF365474),Color(0xFF17263B)))),
         contentAlignment=Alignment.Center
     ) {
         Text(emoji, fontSize=52.sp, color=SoftWhite)

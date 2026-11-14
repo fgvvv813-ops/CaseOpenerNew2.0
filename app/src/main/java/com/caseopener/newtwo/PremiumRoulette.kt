@@ -62,13 +62,13 @@ internal fun PremiumRoulette(
             modifier=Modifier.fillMaxWidth().widthIn(max=540.dp),
             color=DarkBg,
             border=BorderStroke(1.dp,NeonViolet),
-            shape=RoundedCornerShape(25.dp)
+            shape=RoundedCornerShape(11.dp)
         ) {
             Column(
                 Modifier.fillMaxWidth().padding(vertical=22.dp),
                 horizontalAlignment=Alignment.CenterHorizontally
             ) {
-                Text(if(finished)"ТВОЯ НАГРАДА!" else "ОТКРЫТИЕ КЕЙСА…",
+                Text(if(finished)"ПОЛУЧЕН ПРЕДМЕТ" else "ОТКРЫВАЕМ КЕЙС…",
                     color=if(finished)NeonGold else SoftWhite,
                     fontWeight=FontWeight.Black,fontSize=19.sp,
                     textAlign=TextAlign.Center)
@@ -76,7 +76,7 @@ internal fun PremiumRoulette(
                 Box(
                     Modifier.fillMaxWidth().height(166.dp)
                         .background(Brush.verticalGradient(
-                            listOf(Color(0xFF183740),Color(0xFF122833))))
+                            listOf(Color(0xFF273B55),Color(0xFF101E31))))
                         .border(1.dp,NeonViolet.copy(alpha=0.75f))
                 ) {
                     LazyRow(
@@ -89,9 +89,9 @@ internal fun PremiumRoulette(
                         itemsIndexed(sequence) { index,skin->
                             val hue=rarityHue(skin.rarity)
                             Surface(
-                                color=if(index==36)Color(0xFF285560) else DarkPanel,
+                                color=if(index==36)Color(0xFF385574) else DarkPanel,
                                 border=BorderStroke(1.dp,hue),
-                                shape=RoundedCornerShape(13.dp),
+                                shape=RoundedCornerShape(8.dp),
                                 modifier=Modifier.width(119.dp).height(137.dp)
                             ) {
                                 Column(Modifier.padding(6.dp),

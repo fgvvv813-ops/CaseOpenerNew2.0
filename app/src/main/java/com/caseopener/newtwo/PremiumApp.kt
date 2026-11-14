@@ -100,9 +100,10 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
     MaterialTheme(colorScheme=premiumScheme) {
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(listOf(DarkBg,Color(0xFF0B222B),DarkBg))
+                Brush.verticalGradient(listOf(Color(0xFF101E30),DarkBg,Color(0xFF0A1220)))
             ).statusBarsPadding().navigationBarsPadding().imePadding()
         ) {
+            HexPatternBackground(Modifier.matchParentSize())
             if(client.token==null) {
                 PremiumLogin(client)
             } else if(client.state==null) {
@@ -151,7 +152,7 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                                 Crossfade(
                                     targetState=page,
                                     modifier=Modifier.weight(1f),
-                                    animationSpec=if(reducedMotion) snap() else tween(230),
+                                    animationSpec=if(reducedMotion) snap() else tween(300),
                                     label="Экран"
                                 ) { activePage ->
                                     when(activePage) {
@@ -341,9 +342,9 @@ private fun PremiumHeader(
                 modifier=Modifier.size(39.dp).clip(RoundedCornerShape(11.dp)))
             Spacer(Modifier.width(7.dp))
             Column(Modifier.weight(1f)) {
-                Text("CASEOPENER",color=SoftWhite,fontSize=19.sp,
+                Text("CASE OPENER",color=SoftWhite,fontSize=19.sp,
                     fontWeight=FontWeight.Black,maxLines=1)
-                Text("N E W   2 . 0",color=NeonGold,fontSize=10.sp,fontWeight=FontWeight.Black)
+                Text("N E W   2 . 0  •  ONLINE",color=NeonGold,fontSize=9.sp,fontWeight=FontWeight.Black)
             }
             IconMini("🔔",onNotifications,hasCatalogUpdate)
             Spacer(Modifier.width(7.dp))
@@ -351,12 +352,13 @@ private fun PremiumHeader(
         }
         val state=client.state
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF122732)).padding(9.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFF2A415B),DarkPanel)))
+                .border(1.dp,Color(0xFF48627D),RoundedCornerShape(9.dp)).padding(9.dp),
             verticalAlignment=Alignment.CenterVertically
         ) {
             Image(painter=painterResource(R.drawable.ic_launcher),contentDescription=null,
-                modifier=Modifier.size(43.dp).clip(RoundedCornerShape(15.dp)))
+                modifier=Modifier.size(43.dp).clip(RoundedCornerShape(8.dp)))
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(state?.username.orEmpty(),fontSize=14.sp,
@@ -366,15 +368,15 @@ private fun PremiumHeader(
                 LinearProgressIndicator(
                     progress={progressFraction(state?.openings?:0)},
                     modifier=Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(8.dp)),
-                    color=NeonViolet,
-                    trackColor=Color(0xFF2C4A55)
+                    color=NeonBlue,
+                    trackColor=Color(0xFF101B2B)
                 )
             }
             Spacer(Modifier.width(9.dp))
             Surface(
-                color=Color(0xFF3C3224),
-                border=BorderStroke(1.dp,NeonGold),
-                shape=RoundedCornerShape(12.dp)
+                color=Color(0xFF302D29),
+                border=BorderStroke(1.dp,NeonGold.copy(alpha=0.7f)),
+                shape=RoundedCornerShape(7.dp)
             ) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
                     Text("🪙 "+(state?.balance?:0).toString(),
@@ -392,9 +394,9 @@ private fun PremiumHeader(
 private fun IconMini(symbol:String,onClick:()->Unit,hasDot:Boolean) {
     Box {
         Surface(
-            color=Color(0xFF1A303A),
-            shape=RoundedCornerShape(12.dp),
-            border=BorderStroke(1.dp,Color(0xFF3C6070)),
+            color=Color(0xFF25374C),
+            shape=RoundedCornerShape(8.dp),
+            border=BorderStroke(1.dp,Color(0xFF4B6482)),
             modifier=Modifier.size(40.dp).clickable(onClick=onClick)
         ) {
             Box(contentAlignment=Alignment.Center) {
@@ -461,7 +463,7 @@ private fun PremiumSideNav(
 private fun PremiumBottomNav(selected:String,unread:Int,pending:Int,onSelect:(String)->Unit) {
     NavigationBar(
         modifier=Modifier.fillMaxWidth().heightIn(min=65.dp),
-        containerColor=Color(0xFF0F222B),
+        containerColor=Color(0xFF152438),
         tonalElevation=5.dp
     ) {
         listOf(
@@ -500,7 +502,7 @@ private fun PremiumBottomNav(selected:String,unread:Int,pending:Int,onSelect:(St
                         fontWeight=if(active)FontWeight.Bold else FontWeight.Normal)
                 },
                 colors=NavigationBarItemDefaults.colors(
-                    indicatorColor=Color(0xFF203E46),
+                    indicatorColor=Color(0xFF344E6A),
                     selectedIconColor=NeonGold,
                     unselectedIconColor=PaleText
                 )
@@ -527,7 +529,7 @@ private fun PremiumLogin(client:GameClient) {
                 modifier=Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)))
             Spacer(Modifier.width(9.dp))
             Column {
-                Text("CASEOPENER",fontSize=22.sp,fontWeight=FontWeight.Black,color=SoftWhite)
+                Text("CASE OPENER",fontSize=22.sp,fontWeight=FontWeight.Black,color=SoftWhite)
                 Text("N E W   2 . 0",fontSize=12.sp,fontWeight=FontWeight.Black,color=NeonGold)
             }
         }
@@ -541,7 +543,7 @@ private fun PremiumLogin(client:GameClient) {
                 caseId="neon")
         }
         Spacer(Modifier.height(2.dp))
-        Text("🔒 Требуется авторизация",color=NeonGold,
+        Text("ДОБРО ПОЖАЛОВАТЬ",color=NeonGold,
             fontSize=20.sp,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
         Spacer(Modifier.height(4.dp))
         Text("Войди в аккаунт или создай новый, чтобы открывать кейсы и получать награды.",
@@ -550,13 +552,13 @@ private fun PremiumLogin(client:GameClient) {
         Column(Modifier.widthIn(max=520.dp).fillMaxWidth()) {
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF201936)).padding(4.dp),
+                    .background(Color(0xFF19283C)).padding(4.dp),
                 horizontalArrangement=Arrangement.spacedBy(4.dp)
             ) {
                 listOf(false,true).forEach { mode->
                     val active=create==mode
                     Surface(
-                        color=if(active)Color(0xFF672B85) else Color.Transparent,
+                        color=if(active)Color(0xFF355F8E) else Color.Transparent,
                         shape=RoundedCornerShape(13.dp),
                         border=if(active)BorderStroke(1.dp,NeonViolet) else null,
                         modifier=Modifier.weight(1f).clickable {create=mode}

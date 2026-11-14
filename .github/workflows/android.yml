@@ -1,7 +1,7 @@
 name: Build Android APK
 on:
   push:
-    branches: [main]
+    branches: [main, design/case-opener-classic-ui]
   workflow_dispatch:
 permissions:
   contents: write
@@ -51,6 +51,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish versioned APK in GitHub Releases
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
