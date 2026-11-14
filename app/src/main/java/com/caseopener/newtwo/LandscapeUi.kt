@@ -481,3 +481,190 @@ internal fun LandscapeLogin(client:GameClient) {
         }
     }
 }
+
+
+@Composable
+internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
+    var query by rememberSaveable{mutableStateOf("")}
+    var filter by rememberSaveable{mutableStateOf("Все")}
+    var sort by rememberSaveable{mutableStateOf("Новые")}
+    var page by rememberSaveable{mutableIntStateOf(0)}
+    val raw=client.state?.inventory.orEmpty()
+    val filtered=remember(raw,query,filter,sort) {
+        val matches=raw.filter { skin ->
+            skin.name.contains(query.trim(),ignoreCase=true) && when(filter) {
+                "Редкие"->skin.rarity.equals("редкий",true)
+                "Эпические"->skin.rarity.equals("эпический",true)
+                "Легендарные"->skin.rarity.equals("легендарный",true)
+                else->true
+            }
+        }
+        when(sort) {
+            "Цена ↓"->matches.sortedByDescending{it.value}
+            "Цена ↑"->matches.sortedBy{it.value}
+            "Редкость"->matches.sortedByDescending{
+                when(it.rarity.lowercase()) {
+                    "легендарный"->5;"мифический"->4;"эпический"->3;"редкий"->2;else->1
+                }
+            }
+            else->matches
+        }
+    }
+    val pages=(filtered.size+23)/24
+    val current=page.coerceIn(0,(pages-1).coerceAtLeast(0))
+    val visible=filtered.drop(current*24).take(24)
+    LaunchedEffect(query,filter,sort){page=0}
+    Column(modifier.fillMaxSize().padding(horizontal=11.dp,vertical=6.dp)) {
+        Row(
+            Modifier.fillMaxWidth().height(36.dp),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(6.dp)
+        ) {
+            Text("ИНВЕНТАРЬ",fontSize=15.sp,fontWeight=FontWeight.Black)
+            Text(raw.size.toString(),color=NeonGold,fontSize=11.sp)
+            androidx.compose.foundation.text.BasicTextField(
+                value=query,onValueChange={query=it.take(80)},singleLine=true,
+                textStyle=androidx.compose.ui.text.TextStyle(color=SoftWhite,fontSize=12.sp),
+                modifier=Modifier.weight(1f).height(31.dp).clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF15283D)).border(1.dp,FrameBorder,RoundedCornerShape(4.dp))
+                    .padding(horizontal=8.dp,vertical=7.dp),
+                decorationBox={inner->
+                    Box {
+                        if(query.isEmpty())Text("⌕ Найти скин…",color=PaleText,fontSize=12.sp)
+                        inner()
+                    }
+                }
+            )
+            listOf("Все","Редкие","Эпические","Легендарные").forEach {option->
+                val active=filter==option
+                Surface(
+                    color=if(active)Color(0xFF496D94) else DarkPanel,
+                    border=BorderStroke(1.dp,if(active)NeonGold else FrameBorder),
+                    shape=RoundedCornerShape(3.dp),
+                    modifier=Modifier.clickable{filter=option}
+                ) { Text(option,fontSize=10.sp,color=SoftWhite,
+                    modifier=Modifier.padding(horizontal=8.dp,vertical=7.dp)) }
+            }
+            val sorts=listOf("Новые","Редкость","Цена ↓","Цена ↑")
+            Text("⇅ "+sort,modifier=Modifier.clickable{
+                sort=sorts[(sorts.indexOf(sort)+1)%sorts.size]
+            }.padding(5.dp),fontSize=10.sp,color=NeonGold,maxLines=1)
+        }
+        Spacer(Modifier.height(7.dp))
+        if(visible.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {
+                Text("В инвентаре нет подходящих предметов",color=PaleText)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns=GridCells.Adaptive(129.dp),
+                modifier=Modifier.weight(1f).fillMaxWidth(),
+                horizontalArrangement=Arrangement.spacedBy(7.dp),
+                verticalArrangement=Arrangement.spacedBy(7.dp),
+                contentPadding=PaddingValues(bottom=7.dp)
+            ) {
+                items(visible,key={it.id}){skin->
+                    val accent=rarityHue(skin.rarity)
+                    LandscapePanel(Modifier.fillMaxWidth().height(143.dp),accent=accent) {
+                        GameArt(skin.imageUrl,skin.emoji,
+                            Modifier.weight(1f).fillMaxWidth().padding(4.dp))
+                        Text(skin.name,fontSize=10.sp,fontWeight=FontWeight.Bold,
+                            maxLines=1,overflow=TextOverflow.Ellipsis,
+                            modifier=Modifier.padding(horizontal=6.dp))
+                        Row(Modifier.fillMaxWidth().padding(4.dp),
+                            verticalAlignment=Alignment.CenterVertically){
+                            Text("◈ "+skin.value,color=NeonGold,fontSize=10.sp,
+                                modifier=Modifier.weight(1f))
+                            Surface(
+                                color=Color(0xFF385777),shape=RoundedCornerShape(3.dp),
+                                border=BorderStroke(1.dp,FrameBorder),
+                                modifier=Modifier.clickable(
+                                    enabled=client.status=="Онлайн" && !client.opening && !client.selling
+                                ){client.sellItem(skin)}
+                            ) {
+                                Text("ПРОДАТЬ",color=SoftWhite,fontSize=9.sp,
+                                    modifier=Modifier.padding(horizontal=6.dp,vertical=4.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(pages>1) {
+            Row(Modifier.fillMaxWidth().height(29.dp),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.Center){
+                Text("‹ НАЗАД",color=if(current>0)NeonGold else PaleText,
+                    fontSize=11.sp,modifier=Modifier.clickable(enabled=current>0){page=current-1})
+                Spacer(Modifier.width(13.dp))
+                Text((current+1).toString()+" / "+pages,fontSize=11.sp,color=SoftWhite)
+                Spacer(Modifier.width(13.dp))
+                Text("ДАЛЕЕ ›",color=if(current<pages-1)NeonGold else PaleText,
+                    fontSize=11.sp,
+                    modifier=Modifier.clickable(enabled=current<pages-1){page=current+1})
+            }
+        }
+    }
+}
+
+@Composable
+internal fun LandscapeProfile(
+    client:GameClient,modifier:Modifier=Modifier,
+    onLogout:()->Unit,onSettings:()->Unit,onNotes:()->Unit
+) {
+    val player=client.state?:return
+    val legendary=player.inventory.count{it.rarity.equals("легендарный",true)}
+    Row(modifier.fillMaxSize().padding(12.dp),
+        horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        LandscapePanel(Modifier.weight(1f).fillMaxHeight(),accent=NeonBlue) {
+            Row(Modifier.fillMaxSize().padding(14.dp),
+                verticalAlignment=Alignment.CenterVertically) {
+                Image(painterResource(R.drawable.ic_launcher),null,
+                    Modifier.size(86.dp).clip(RoundedCornerShape(5.dp)))
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                    Text(player.username,fontSize=20.sp,fontWeight=FontWeight.Black,
+                        maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text("УРОВЕНЬ "+progressLevel(player.openings),color=NeonGold,fontSize=12.sp)
+                    LinearProgressIndicator(
+                        progress={progressFraction(player.openings)},
+                        modifier=Modifier.fillMaxWidth().height(6.dp),
+                        color=NeonBlue,trackColor=DarkBg
+                    )
+                    Text("◈ "+player.balance,color=NeonGold,fontSize=15.sp,fontWeight=FontWeight.Black)
+                }
+            }
+        }
+        LandscapePanel(Modifier.weight(1f).fillMaxHeight(),accent=FrameBorder) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
+                Text("СТАТИСТИКА",fontSize=15.sp,fontWeight=FontWeight.Black)
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+                    Text("Открыто кейсов: "+player.openings,color=SoftWhite,fontSize=12.sp)
+                    Text("Предметов: "+player.inventory.size,color=SoftWhite,fontSize=12.sp)
+                }
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+                    Text("Легендарных: "+legendary,color=SoftWhite,fontSize=12.sp)
+                    Text("Коллекция: ◈ "+player.inventory.sumOf{it.value},
+                        color=NeonGold,fontSize=12.sp)
+                }
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                    OutlinedButton(onClick=onSettings,modifier=Modifier.weight(1f),
+                        contentPadding=PaddingValues(horizontal=5.dp,vertical=0.dp)) {
+                        Text("НАСТРОЙКИ",fontSize=10.sp)
+                    }
+                    OutlinedButton(onClick=onNotes,modifier=Modifier.weight(1f),
+                        contentPadding=PaddingValues(horizontal=5.dp,vertical=0.dp)) {
+                        Text("ОБНОВЛЕНИЯ",fontSize=10.sp)
+                    }
+                    OutlinedButton(onClick=onLogout,modifier=Modifier.weight(1f),
+                        contentPadding=PaddingValues(horizontal=5.dp,vertical=0.dp)) {
+                        Text("ВЫХОД",fontSize=10.sp,color=WarningRed)
+                    }
+                }
+                Text("CaseOpener New 2.0 • "+BuildConfig.VERSION_NAME,
+                    fontSize=10.sp,color=PaleText)
+            }
+        }
+    }
+}
