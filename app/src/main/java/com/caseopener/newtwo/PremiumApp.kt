@@ -43,10 +43,11 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var notificationOpenVersion by mutableIntStateOf(0)
+    private var foregroundVersion by mutableIntStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if(intent?.getBooleanExtra("open_notifications",false)==true) notificationOpenVersion++
-        setContent { PremiumGame(notificationOpenVersion) }
+        setContent { PremiumGame(notificationOpenVersion,foregroundVersion) }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         AppVisibility.visible=true
+        foregroundVersion++
     }
     override fun onStop() {
         AppVisibility.visible=false
@@ -64,7 +66,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-internal fun PremiumGame(openNotificationsVersion:Int = 0) {
+internal fun PremiumGame(openNotificationsVersion:Int = 0, foregroundVersion:Int = 0) {
     val context=LocalContext.current
     val client=remember { GameClient(context.applicationContext) }
     val prefs=remember { context.applicationContext.getSharedPreferences("caseopener_ui",Context.MODE_PRIVATE) }
@@ -77,6 +79,9 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
     var confirmLogout by remember { mutableStateOf(false) }
     var reducedMotion by remember { mutableStateOf(prefs.getBoolean("reduced_motion",false)) }
     val online=client.state!=null && client.token!=null
+    LaunchedEffect(foregroundVersion,online) {
+        if(online && foregroundVersion>0) client.refreshNotificationsAndPush()
+    }
     LaunchedEffect(openNotificationsVersion,online) {
         if(online && openNotificationsVersion>0) showNotifications=true
     }
@@ -259,7 +264,7 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                                 color=if(permissionOK)NeonViolet else WarningRed,fontSize=12.sp
                             )
                             Text(
-                                if(PushManager.configured()) "FCM: подключён в приложении"
+                                if(PushManager.configured()) "FCM: клиент настроен, сервер проверяется отдельно"
                                 else "FCM: для фоновой доставки нужна настройка Firebase",
                                 color=if(PushManager.configured())NeonViolet else PaleText,
                                 fontSize=11.sp
