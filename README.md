@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.011.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.012.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Install
 
@@ -74,3 +74,21 @@ The Android app supports `state_changed`, `account_banned` and `chat_deleted` ev
 - Coil caches images after their initial download; the app invalidates disk/memory cache keys no longer referenced by server cases/skins or the player's inventory.
 - Compatible game API and website files are distributed separately and MUST be deployed on ports 40017 and 40036 respectively.
 - Never expose the unauthenticated website, the HMAC signing secret, or the SQLite database on the public internet.
+
+## Android background push (FCM)
+The Android app includes an optional Firebase Messaging client and a
+FirebaseMessagingService. It works without any Firebase configuration
+(foreground WebSocket notifications continue), but background/terminated-app
+push is **inactive** until you configure BOTH:
+1. GitHub Actions repository secrets FIREBASE_PROJECT_ID, FIREBASE_SENDER_ID,
+   FIREBASE_APPLICATION_ID, FIREBASE_API_KEY from an Android app in your
+   own Firebase project. Android package: com.caseopener.newtwo.
+2. On the game API host: private service account JSON and
+   CASEOPENER_FIREBASE_CREDENTIALS=/absolute/path/to/firebase-service-account.json
+   plus the separately supplied updated game API.
+3. Rebuild APK after adding secrets by rerunning the Android workflow.
+
+Never upload a Firebase service account JSON to GitHub or put it inside an APK.
+FCM requires Android notification permission and network/Google Play Services;
+Android force-stop and restrictive OEM modes can still prevent prompt delivery.
+The game-server database remains authoritative for notification history.
