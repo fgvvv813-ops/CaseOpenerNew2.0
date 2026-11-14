@@ -211,16 +211,17 @@ internal fun LandscapeHome(
 ) {
     BoxWithConstraints(modifier.fillMaxSize().padding(horizontal=12.dp,vertical=7.dp)) {
         val compact=maxHeight<245.dp
+        val smallHome=maxWidth<680.dp
         val cardWidth=when {maxWidth<680.dp->138.dp;maxWidth>1100.dp->188.dp;else->160.dp}
         Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("CASE OPENER",fontWeight=FontWeight.Black,color=SoftWhite,
                     fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f),
                     fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)
-                if(maxWidth>=680.dp) Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
+                if(!smallHome) Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
                 Spacer(Modifier.width(12.dp))
                 Text("ВСЕ КЕЙСЫ  ›",Modifier.clickable(onClick=onCases),
-                    color=NeonGold,fontSize=if(maxWidth<680.dp)10.sp else 11.sp,fontWeight=FontWeight.Bold)
+                    color=NeonGold,fontSize=if(smallHome)10.sp else 11.sp,fontWeight=FontWeight.Bold)
             }
             if(client.cases.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center){
