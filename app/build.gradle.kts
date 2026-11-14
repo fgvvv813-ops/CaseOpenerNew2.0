@@ -14,6 +14,10 @@ android {
         targetSdk = 35
         versionCode = providers.gradleProperty("appVersionCode").get().toInt()
         versionName = providers.gradleProperty("appVersionName").get()
+        // Prefer a regional HTTPS reverse-proxy endpoint on port 443 for
+        // Android users. Defaults to the legacy test server if unset.
+        buildConfigField("String", "GAME_API_BASE",
+            "\\\"" + providers.environmentVariable("GAME_API_BASE").orElse("").get() + "\\\"")
         // Nonsecret Firebase Android client configuration, injected at APK build time.
         // Private Firebase SERVICE ACCOUNT credentials must NEVER be put in the APK.
         buildConfigField("String", "FIREBASE_PROJECT_ID",
