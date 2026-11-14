@@ -47,17 +47,19 @@ internal fun PremiumRoulette(
             delay(180)
             scroll.scrollToItem(35)
         } else {
-            // The result is decided on the server before the animation starts.
-            for (index in 1..35) {
-                scroll.scrollToItem(index)
-                delay(16L + index.toLong()*index/7)
-            }
+            // Smooth movement in three phases. The server already chose
+            // the reward; this animation never controls game outcomes.
+            scroll.animateScrollToItem(10)
+            delay(120)
+            scroll.animateScrollToItem(25)
+            delay(180)
+            scroll.animateScrollToItem(35)
         }
         finished=true
     }
     Dialog(onDismissRequest={if(finished)onClose()}) {
         Surface(
-            modifier=Modifier.fillMaxWidth(),
+            modifier=Modifier.fillMaxWidth().widthIn(max=540.dp),
             color=DarkBg,
             border=BorderStroke(1.dp,NeonViolet),
             shape=RoundedCornerShape(25.dp)
@@ -74,7 +76,7 @@ internal fun PremiumRoulette(
                 Box(
                     Modifier.fillMaxWidth().height(166.dp)
                         .background(Brush.verticalGradient(
-                            listOf(Color(0xFF2C143C),Color(0xFF1A1036))))
+                            listOf(Color(0xFF183740),Color(0xFF122833))))
                         .border(1.dp,NeonViolet.copy(alpha=0.75f))
                 ) {
                     LazyRow(
@@ -87,7 +89,7 @@ internal fun PremiumRoulette(
                         itemsIndexed(sequence) { index,skin->
                             val hue=rarityHue(skin.rarity)
                             Surface(
-                                color=if(index==36)Color(0xFF4A2A5F) else DarkPanel,
+                                color=if(index==36)Color(0xFF285560) else DarkPanel,
                                 border=BorderStroke(1.dp,hue),
                                 shape=RoundedCornerShape(13.dp),
                                 modifier=Modifier.width(119.dp).height(137.dp)
