@@ -160,8 +160,8 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                                         onBack={page="cases"})
                                 }
                             }
-                            "inventory" -> PremiumInventory(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp
+                            "inventory" -> LandscapeInventory(
+                                client=client,modifier=Modifier.fillMaxSize()
                             )
                             "trades" -> PremiumTrades(
                                 client=client,modifier=Modifier.fillMaxSize(),padding=12.dp
@@ -179,8 +179,8 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                                 modifier=Modifier.fillMaxSize(),
                                 onPage={page=it},onNotes={showNotes=true}
                             )
-                            else -> PremiumProfile(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp,
+                            else -> LandscapeProfile(
+                                client=client,modifier=Modifier.fillMaxSize(),
                                 onLogout={confirmLogout=true},
                                 onSettings={showSettings=true},
                                 onNotes={showNotes=true}
