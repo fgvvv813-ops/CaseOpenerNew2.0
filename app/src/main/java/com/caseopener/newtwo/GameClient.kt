@@ -34,7 +34,8 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 // Replace with an HTTPS URL and remove cleartext permission before public release.
-const val SERVER_BASE = "http://93.123.84.239:40017"
+val SERVER_BASE: String = BuildConfig.GAME_API_BASE.trim().trimEnd('/')
+    .ifBlank { "http://93.123.84.239:40017" }
 
 data class GameSkin(
     val id: String, val name: String, val rarity: String,
@@ -210,9 +211,10 @@ class GameClient(context: Context) {
     private val store = SessionStore(context.applicationContext)
     private val main = Handler(Looper.getMainLooper())
     private val http = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(12, TimeUnit.SECONDS)
-        .pingInterval(25, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .pingInterval(18, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .build()
 
     var token by mutableStateOf(store.read())
@@ -234,8 +236,8 @@ class GameClient(context: Context) {
     var selling by mutableStateOf(false)
         private set
 
-    // Sell-all submits the existing authenticated sell_item event one at a time.
-    // Each sale must be acknowledged by the server before sending the next.
+    // A single atomic sell_all request clears only the confirmed inventory.
+    // No optimistic balance updates: wait for the server's receipt.
     var bulkSaleTotal by mutableIntStateOf(0)
         private set
     var bulkSaleCompleted by mutableIntStateOf(0)
@@ -441,7 +443,8 @@ class GameClient(context: Context) {
         tradeTargetLoading = false
         pendingTradeRequest = null
         tries = (tries+1).coerceAtMost(6)
-        val backoff = (1000L * (1 shl tries)).coerceAtMost(30000L)
+        val backoff = ((600L * (1 shl tries)).coerceAtMost(18000L) +
+            (0..350).random().toLong())
         val generation = connectionGeneration
         main.postDelayed({
             if (!closed && generation == connectionGeneration && token != null) connect()
@@ -480,6 +483,9 @@ class GameClient(context: Context) {
                 if(notices.none {it.id==notice.id}) {
                     notices=(listOf(notice)+notices).sortedByDescending{it.id}.take(1000)
                     unreadNotices=(unreadNotices+1).coerceAtMost(99999)
+                    // Show a socket-delivered alert even when FCM is unreachable.
+                    // Both local and FCM notifications use the same stable tag,
+                    // so Android can replace duplicates for a single notice.
                     DeviceAlerts.notify(appContext,notice)
                 }
             }
@@ -616,23 +622,23 @@ class GameClient(context: Context) {
                 if (pendingSellRequest != null &&
                     event.optString("request_id") == pendingSellRequest) {
                     pendingSellRequest = null
-                    if (bulkSaleTotal > 0 && !bulkSaleFinished) {
-                        val sold = bulkSaleQueue.firstOrNull()
-                        bulkSaleCompleted += 1
-                        bulkSaleSoldValue += sold?.value?.toLong() ?: 0L
-                        bulkSaleQueue = bulkSaleQueue.drop(1)
-                        if (bulkSaleQueue.isEmpty()) {
-                            selling = false
-                            bulkSaleFinished = true
-                        } else if (!sendSellRequest(bulkSaleQueue.first().id)) {
-                            selling = false
-                            bulkSaleFinished = true
-                            bulkSaleInterrupted = true
-                            error = "Продано $bulkSaleCompleted из $bulkSaleTotal. Остальное не отправлено."
-                        }
-                    } else {
-                        selling = false
-                    }
+                    selling = false
+                }
+            }
+            "inventory_cleared" -> {
+                val previous = state
+                val version = event.optInt("revision")
+                if(previous!=null && version>previous.revision) {
+                    state=previous.copy(balance=event.getInt("balance"),
+                        revision=version,inventory=emptyList())
+                }
+                if(pendingSellRequest!=null &&
+                    event.optString("request_id")==pendingSellRequest) {
+                    pendingSellRequest=null
+                    selling=false
+                    bulkSaleCompleted=event.optInt("sold_count",0)
+                    bulkSaleSoldValue=event.optLong("earned",0L)
+                    bulkSaleFinished=true
                 }
             }
             "error" -> {
@@ -758,30 +764,44 @@ class GameClient(context: Context) {
     }
 
     fun sellAllItems(items: List<OwnedSkin>, expectedRevision: Int): Boolean {
-        if (status != "Онлайн" || selling || opening || bulkSaleTotal != 0 ||
-            items.isEmpty() || pendingSellRequest != null) return false
-        val current = state ?: return false
-        // A new item, another trade, or a stale inventory invalidates the
-        // confirmation. Never sell more than the items explicitly confirmed.
-        if (current.revision != expectedRevision ||
-            items.map { it.id }.toSet() != current.inventory.map { it.id }.toSet() ||
-            items.size != current.inventory.size) {
-            error = "Инвентарь изменился. Открой подтверждение продажи повторно."
+        if (status != "Онлайн" || selling || opening || bulkSaleTotal!=0 ||
+            items.isEmpty() || pendingSellRequest!=null) return false
+        val current=state ?: return false
+        if (current.revision!=expectedRevision ||
+            items.size!=current.inventory.size ||
+            items.map{it.id}.toSet()!=current.inventory.map{it.id}.toSet()) {
+            error="Инвентарь изменился. Подтверди продажу заново."
             return false
         }
-        bulkSaleQueue = items.toList()
-        bulkSaleTotal = items.size
-        bulkSaleCompleted = 0
-        bulkSaleSoldValue = 0L
-        bulkSaleFinished = false
-        bulkSaleInterrupted = false
-        error = null
-        if (!sendSellRequest(bulkSaleQueue.first().id)) {
-            bulkSaleQueue = emptyList()
-            bulkSaleTotal = 0
-            error = "Не удалось отправить продажу. Повтори попытку."
+        val rid=UUID.randomUUID().toString()
+        val payload=JSONObject().put("type","sell_all")
+            .put("expected_revision",expectedRevision)
+            .put("expected_count",items.size)
+            .put("request_id",rid)
+        if(socket?.send(payload.toString())!=true) {
+            error="Не удалось отправить продажу на сервер."
             return false
         }
+        bulkSaleQueue=emptyList()
+        bulkSaleTotal=items.size
+        bulkSaleCompleted=0
+        bulkSaleSoldValue=0L
+        bulkSaleFinished=false
+        bulkSaleInterrupted=false
+        pendingSellRequest=rid
+        selling=true
+        error=null
+        // A missing acknowledgment is NOT evidence of a failed transaction.
+        // Never automatically repeat a potentially committed bulk sale.
+        main.postDelayed({
+            if(pendingSellRequest==rid) {
+                pendingSellRequest=null
+                selling=false
+                bulkSaleInterrupted=true
+                bulkSaleFinished=true
+                error="Нет подтверждения сервера. Проверь инвентарь и баланс."
+            }
+        },20000L)
         return true
     }
 
@@ -796,6 +816,21 @@ class GameClient(context: Context) {
     }
 
     fun acknowledgeReward() { reward=null }
+
+    fun refreshNotificationsAndPush() {
+        if(status!="Онлайн" || socket==null) return
+        socket?.send(JSONObject().put("type","notifications_history").toString())
+        // Token could have rotated while Android was backgrounded. Re-register
+        // on each foreground return, without requiring a full WebSocket reconnect.
+        PushManager.refreshToken(appContext) { latest ->
+            main.post {
+                if(status=="Онлайн" && token!=null && latest!=lastPushTokenSent) {
+                    val payload=JSONObject().put("type","push_register").put("token",latest)
+                    if(socket?.send(payload.toString())==true) lastPushTokenSent=latest
+                }
+            }
+        }
+    }
 
     fun requestOlderNotices() {
         if(status!="Онлайн" || !noticesHasMore || notices.isEmpty()) return

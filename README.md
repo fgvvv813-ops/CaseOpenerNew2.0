@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.016.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.017.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Landscape multi-case opening (0.0.015)
 
@@ -17,6 +17,15 @@ Native Android game written in Kotlin + Jetpack Compose.
 - Client serializes existing server-authoritative `sell_item` operations; each following item waits for an acknowledgment. Interrupted actions are never retried automatically, and the UI asks the player to check inventory.
 - Account logout requires explicit confirmation and is blocked during pending inventory-changing actions.
 - Accepting an incoming trade requires a confirmation preview of the exact items and coin amounts to give and receive. Trade ownership and balances remain revalidated by the server.
+
+## API / Firebase delivery (v0.0.017)
+
+- Android sell-all requires the accompanying Game API v0.0.017. The request contains `expected_revision`, `expected_count` and idempotency `request_id`; server responds with `inventory_cleared`.
+- Android FCM client configuration must be present **when building APK**: GitHub Actions secrets `FIREBASE_PROJECT_ID`, `FIREBASE_SENDER_ID`, `FIREBASE_APPLICATION_ID`, `FIREBASE_API_KEY`. CI warns when missing but still compiles without push.
+- The Game API also requires `CASEOPENER_FIREBASE_CREDENTIALS` referencing a **private** Firebase service account JSON on the server, from the same Firebase project. Never put the service account JSON in the APK.
+- GitHub Actions repository variable `GAME_API_BASE` can point to a regional HTTPS/WSS reverse proxy on port 443; default is the old HTTP testing endpoint. Do not point regional proxies at distinct databases.
+- Closed-app delivery requires FCM connectivity, Android notification permission and Google Play services. Force-stopped apps cannot be guaranteed to receive messages; stored server notices resync on foreground.
+- Game API and Web Admin v0.0.017 are distributed separately with explicit SQLite migration instructions.
 
 ## Install
 
