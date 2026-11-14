@@ -818,6 +818,21 @@ class GameClient(context: Context) {
 
     fun acknowledgeReward() { reward=null }
 
+    fun refreshNotificationsAndPush() {
+        if(status!="Онлайн" || socket==null) return
+        socket?.send(JSONObject().put("type","notifications_history").toString())
+        // Token could have rotated while Android was backgrounded. Re-register
+        // on each foreground return, without requiring a full WebSocket reconnect.
+        PushManager.refreshToken(appContext) { latest ->
+            main.post {
+                if(status=="Онлайн" && token!=null && latest!=lastPushTokenSent) {
+                    val payload=JSONObject().put("type","push_register").put("token",latest)
+                    if(socket?.send(payload.toString())==true) lastPushTokenSent=latest
+                }
+            }
+        }
+    }
+
     fun requestOlderNotices() {
         if(status!="Онлайн" || !noticesHasMore || notices.isEmpty()) return
         socket?.send(JSONObject().put("type","notifications_history")
