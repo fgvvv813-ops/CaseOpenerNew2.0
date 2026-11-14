@@ -1,8 +1,7 @@
 package com.caseopener.newtwo
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -76,8 +75,13 @@ internal fun BatchOpenDialog(client:GameClient, reducedMotion:Boolean, onClose:(
                             color=Color(0xFF263D54),shape=RoundedCornerShape(4.dp),
                             border=BorderStroke(1.dp,hue)
                         ) {
-                            Box(Modifier.fillMaxSize()) {
-                                if(item==null) {
+                            Crossfade(
+                                targetState=item,
+                                animationSpec=if(reducedMotion)snap() else tween(220),
+                                modifier=Modifier.fillMaxSize(),
+                                label="Подтверждённый предмет"
+                            ) { shown ->
+                                if(shown==null) {
                                     Column(Modifier.align(Alignment.Center),
                                         horizontalAlignment=Alignment.CenterHorizontally) {
                                         Text("◈",fontSize=28.sp,color=PaleText)
@@ -85,27 +89,21 @@ internal fun BatchOpenDialog(client:GameClient, reducedMotion:Boolean, onClose:(
                                             fontSize=9.sp,color=PaleText)
                                     }
                                 } else {
-                                    AnimatedVisibility(
-                                        visible=true,
-                                        enter=if(reducedMotion)fadeIn(tween(0))
-                                            else fadeIn(tween(220))+scaleIn(tween(220),initialScale=.88f),
-                                        modifier=Modifier.fillMaxSize()
-                                    ) {
-                                        Column(Modifier.fillMaxSize()) {
-                                            GameArt(item.imageUrl,item.emoji,
-                                                Modifier.weight(1f).fillMaxWidth().padding(5.dp))
-                                            Column(Modifier.fillMaxWidth().background(Color(0xFF132337))
-                                                .padding(horizontal=5.dp,vertical=4.dp)) {
-                                                Text(item.name,fontSize=10.sp,color=SoftWhite,
-                                                    fontWeight=FontWeight.Bold,maxLines=1,
-                                                    overflow=TextOverflow.Ellipsis)
-                                                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                                                    Text(item.rarity,fontSize=9.sp,color=hue,
-                                                        modifier=Modifier.weight(1f),
-                                                        maxLines=1,overflow=TextOverflow.Ellipsis)
-                                                    Text("◈ "+item.value,fontSize=10.sp,
-                                                        color=NeonGold,fontWeight=FontWeight.Bold)
-                                                }
+                                    Column(Modifier.fillMaxSize()) {
+                                        GameArt(shown.imageUrl,shown.emoji,
+                                            Modifier.weight(1f).fillMaxWidth().padding(5.dp))
+                                        Column(Modifier.fillMaxWidth().background(Color(0xFF132337))
+                                            .padding(horizontal=5.dp,vertical=4.dp)) {
+                                            Text(shown.name,fontSize=10.sp,color=SoftWhite,
+                                                fontWeight=FontWeight.Bold,maxLines=1,
+                                                overflow=TextOverflow.Ellipsis)
+                                            Row(Modifier.fillMaxWidth(),
+                                                verticalAlignment=Alignment.CenterVertically) {
+                                                Text(shown.rarity,fontSize=9.sp,color=rarityHue(shown.rarity),
+                                                    modifier=Modifier.weight(1f),
+                                                    maxLines=1,overflow=TextOverflow.Ellipsis)
+                                                Text("◈ "+shown.value,fontSize=10.sp,
+                                                    color=NeonGold,fontWeight=FontWeight.Bold)
                                             }
                                         }
                                     }
