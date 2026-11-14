@@ -161,8 +161,8 @@ internal fun NotificationsDialog(client:GameClient,onClose:()->Unit,onTrades:()-
                 client.notices.forEach {note->
                     Surface(
                         shape=RoundedCornerShape(13.dp),
-                        color=if(!note.read)Color(0xFF332044) else Color(0xFF201B31),
-                        border=BorderStroke(1.dp,if(!note.read)NeonViolet else Color(0xFF49415D))
+                        color=if(!note.read)Color(0xFF27505A) else Color(0xFF182D38),
+                        border=BorderStroke(1.dp,if(!note.read)NeonViolet else Color(0xFF385864))
                     ){
                         Column(Modifier.fillMaxWidth().padding(11.dp),
                             verticalArrangement=Arrangement.spacedBy(5.dp)) {
@@ -222,7 +222,7 @@ internal fun PremiumMenu(
 private fun MenuTile(symbol:String,name:String,detail:String,accent:Color,onClick:()->Unit) {
     Surface(
         modifier=Modifier.fillMaxWidth().clickable(onClick=onClick),
-        color=Color(0xFF222039),
+        color=Color(0xFF1A303B),
         shape=RoundedCornerShape(17.dp),
         border=BorderStroke(1.dp,accent.copy(alpha=0.6f))
     ){
