@@ -204,6 +204,13 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                         onClose={client.acknowledgeReward()}
                     )
                 }
+                if(client.batchOpenTarget > 1) {
+                    BatchOpenDialog(
+                        client=client,
+                        reducedMotion=reducedMotion,
+                        onClose={client.acknowledgeBatchOpen()}
+                    )
+                }
             }
             if(showNotes) {
                 UpdateInfo(onClose={showNotes=false})
