@@ -128,7 +128,7 @@ internal object DeviceAlerts {
             .setContentIntent(open).setAutoCancel(true)
             .setCategory(Notification.CATEGORY_MESSAGE)
             .build()
-        manager.notify((notice.id % Int.MAX_VALUE).toInt(),notification)
+        manager.notify("caseopener_notice_"+notice.id,0,notification)
     }
 }
 
