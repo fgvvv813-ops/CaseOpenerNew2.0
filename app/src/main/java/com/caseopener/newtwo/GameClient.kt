@@ -233,6 +233,21 @@ class GameClient(context: Context) {
         private set
     var selling by mutableStateOf(false)
         private set
+
+    // Sell-all submits the existing authenticated sell_item event one at a time.
+    // Each sale must be acknowledged by the server before sending the next.
+    var bulkSaleTotal by mutableIntStateOf(0)
+        private set
+    var bulkSaleCompleted by mutableIntStateOf(0)
+        private set
+    var bulkSaleSoldValue by mutableStateOf(0L)
+        private set
+    var bulkSaleFinished by mutableStateOf(false)
+        private set
+    var bulkSaleInterrupted by mutableStateOf(false)
+        private set
+    private var bulkSaleQueue: List<OwnedSkin> = emptyList()
+
     var reward by mutableStateOf<OwnedSkin?>(null)
         private set
     var rewardCaseId by mutableStateOf<String?>(null)
@@ -403,6 +418,11 @@ class GameClient(context: Context) {
         }
         AppVisibility.websocketConnected = false
         status = "Нет связи с сервером"
+        if (bulkSaleTotal > 0 && !bulkSaleFinished) {
+            bulkSaleInterrupted = true
+            bulkSaleFinished = true
+            error = "Продажа остановлена: сервер мог обработать последнее списание. Проверь баланс и инвентарь."
+        }
         if (batchOpenTarget > 1 && !batchOpenDone) {
             batchOpenInterrupted = true
             batchOpenDone = true
@@ -593,9 +613,26 @@ class GameClient(context: Context) {
                     state = before.copy(balance=event.getInt("balance"),revision=revision,
                         inventory=before.inventory.filterNot { it.id == event.getLong("item_id") })
                 }
-                if (event.optString("request_id")==pendingSellRequest) {
-                    selling=false
-                    pendingSellRequest=null
+                if (pendingSellRequest != null &&
+                    event.optString("request_id") == pendingSellRequest) {
+                    pendingSellRequest = null
+                    if (bulkSaleTotal > 0 && !bulkSaleFinished) {
+                        val sold = bulkSaleQueue.firstOrNull()
+                        bulkSaleCompleted += 1
+                        bulkSaleSoldValue += sold?.value?.toLong() ?: 0L
+                        bulkSaleQueue = bulkSaleQueue.drop(1)
+                        if (bulkSaleQueue.isEmpty()) {
+                            selling = false
+                            bulkSaleFinished = true
+                        } else if (!sendSellRequest(bulkSaleQueue.first().id)) {
+                            selling = false
+                            bulkSaleFinished = true
+                            bulkSaleInterrupted = true
+                            error = "Продано $bulkSaleCompleted из $bulkSaleTotal. Остальное не отправлено."
+                        }
+                    } else {
+                        selling = false
+                    }
                 }
             }
             "error" -> {
@@ -608,9 +645,14 @@ class GameClient(context: Context) {
                         batchOpenDone = true
                     }
                 }
-                if (event.optString("request_id")==pendingSellRequest) {
+                if (pendingSellRequest != null &&
+                    event.optString("request_id") == pendingSellRequest) {
                     pendingSellRequest = null
                     selling = false
+                    if (bulkSaleTotal > 0 && !bulkSaleFinished) {
+                        bulkSaleInterrupted = true
+                        bulkSaleFinished = true
+                    }
                 }
             }
         }
@@ -650,7 +692,7 @@ class GameClient(context: Context) {
 
     fun openCase(caseId: String, quantity: Int = 1): Boolean {
         if (quantity !in 1..5 || status != "Онлайн" || opening || selling ||
-            pendingOpenRequest != null || batchOpenTarget != 0) return false
+            pendingOpenRequest != null || batchOpenTarget != 0 || bulkSaleTotal > 0) return false
         val gameCase = cases.firstOrNull { it.id == caseId } ?: return false
         val cost = gameCase.cost.toLong() * quantity
         if (cost > (state?.balance?.toLong() ?: -1L)) {
@@ -685,16 +727,72 @@ class GameClient(context: Context) {
         batchOpenCaseId = null
     }
 
+    private fun sendSellRequest(itemId: Long): Boolean {
+        if (status != "Онлайн" || socket == null || pendingSellRequest != null) return false
+        val rid = UUID.randomUUID().toString()
+        val payload = JSONObject().put("type", "sell_item")
+            .put("item_id", itemId).put("request_id", rid)
+        if (socket?.send(payload.toString()) != true) return false
+        pendingSellRequest = rid
+        selling = true
+        // Never retry a sale whose acknowledgment is missing: the server may
+        // already have committed it. Stop and let the player inspect inventory.
+        main.postDelayed({
+            if (pendingSellRequest == rid) {
+                pendingSellRequest = null
+                selling = false
+                if (bulkSaleTotal > 0 && !bulkSaleFinished) {
+                    bulkSaleInterrupted = true
+                    bulkSaleFinished = true
+                }
+                error = "Нет подтверждения продажи. Проверь баланс и инвентарь перед повтором."
+            }
+        }, 20000L)
+        return true
+    }
+
     fun sellItem(item: OwnedSkin) {
-        if (status != "Онлайн" || selling || opening) return
-        val rid=UUID.randomUUID().toString()
-        val payload=JSONObject().put("type","sell_item").put("item_id",item.id)
-            .put("request_id",rid)
-        if (socket?.send(payload.toString()) == true) {
-            selling=true
-            pendingSellRequest=rid
-            error=null
+        if (status != "Онлайн" || selling || opening || bulkSaleTotal > 0) return
+        if (state?.inventory?.none { it.id == item.id } != false) return
+        if (sendSellRequest(item.id)) error = null
+    }
+
+    fun sellAllItems(items: List<OwnedSkin>, expectedRevision: Int): Boolean {
+        if (status != "Онлайн" || selling || opening || bulkSaleTotal != 0 ||
+            items.isEmpty() || pendingSellRequest != null) return false
+        val current = state ?: return false
+        // A new item, another trade, or a stale inventory invalidates the
+        // confirmation. Never sell more than the items explicitly confirmed.
+        if (current.revision != expectedRevision ||
+            items.map { it.id }.toSet() != current.inventory.map { it.id }.toSet() ||
+            items.size != current.inventory.size) {
+            error = "Инвентарь изменился. Открой подтверждение продажи повторно."
+            return false
         }
+        bulkSaleQueue = items.toList()
+        bulkSaleTotal = items.size
+        bulkSaleCompleted = 0
+        bulkSaleSoldValue = 0L
+        bulkSaleFinished = false
+        bulkSaleInterrupted = false
+        error = null
+        if (!sendSellRequest(bulkSaleQueue.first().id)) {
+            bulkSaleQueue = emptyList()
+            bulkSaleTotal = 0
+            error = "Не удалось отправить продажу. Повтори попытку."
+            return false
+        }
+        return true
+    }
+
+    fun acknowledgeBulkSale() {
+        if (!bulkSaleFinished) return
+        bulkSaleQueue = emptyList()
+        bulkSaleTotal = 0
+        bulkSaleCompleted = 0
+        bulkSaleSoldValue = 0L
+        bulkSaleFinished = false
+        bulkSaleInterrupted = false
     }
 
     fun acknowledgeReward() { reward=null }
@@ -740,7 +838,7 @@ class GameClient(context: Context) {
         targetId:String, offeredItems:List<Long>, requestedItems:List<Long>,
         offeredCoins:Int, requestedCoins:Int
     ):Boolean {
-        if(tradeBusy || status!="Онлайн" ||
+        if(tradeBusy || status!="Онлайн" || selling || bulkSaleTotal>0 ||
             offeredItems.size>6 || requestedItems.size>6 ||
             offeredItems.size!=offeredItems.distinct().size ||
             requestedItems.size!=requestedItems.distinct().size ||
@@ -761,7 +859,8 @@ class GameClient(context: Context) {
     }
 
     fun decideTrade(tradeId:String,decision:String):Boolean {
-        if(tradeBusy || status!="Онлайн" || decision !in listOf("accept","reject","cancel"))
+        if(tradeBusy || status!="Онлайн" || selling || bulkSaleTotal>0 ||
+            decision !in listOf("accept","reject","cancel"))
             return false
         val rid=UUID.randomUUID().toString()
         val payload=JSONObject().put("type","trade_decide")
@@ -844,6 +943,12 @@ class GameClient(context: Context) {
         cases=emptyList()
         status="Нет подключения"
         reward=null
+        bulkSaleQueue=emptyList()
+        bulkSaleTotal=0
+        bulkSaleCompleted=0
+        bulkSaleSoldValue=0L
+        bulkSaleFinished=false
+        bulkSaleInterrupted=false
         batchOpenTarget=0
         batchOpenRewards=emptyList()
         batchOpenDone=false

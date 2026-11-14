@@ -211,6 +211,12 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                         onClose={client.acknowledgeBatchOpen()}
                     )
                 }
+                if(client.bulkSaleTotal > 0) {
+                    BulkSaleDialog(
+                        client=client,
+                        onClose={client.acknowledgeBulkSale()}
+                    )
+                }
             }
             if(showNotes) {
                 UpdateInfo(onClose={showNotes=false})
@@ -276,14 +282,37 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
                 AlertDialog(
                     onDismissRequest={confirmLogout=false},
                     containerColor=DarkPanel,
-                    title={Text("Выйти из аккаунта?")},
-                    text={Text("Прогресс останется в твоём онлайн-аккаунте. Для продолжения игры нужно будет войти снова.")},
-                    dismissButton={TextButton(onClick={confirmLogout=false}) {Text("Отмена")}},
+                    shape=RoundedCornerShape(7.dp),
+                    title={Text("Подтвердить выход из аккаунта",fontWeight=FontWeight.Black,
+                        color=SoftWhite)},
+                    text={
+                        Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                            Text("Ты действительно хочешь выйти из аккаунта «"+
+                                (client.state?.username.orEmpty())+"»?",
+                                color=SoftWhite,fontSize=13.sp)
+                            Text("Монеты, скины и прогресс сохранятся на сервере. Для продолжения игры потребуется снова войти.",
+                                color=PaleText,fontSize=12.sp)
+                            if(client.opening || client.selling || client.bulkSaleTotal>0 || client.tradeBusy) {
+                                Text("Дождись завершения текущего действия, чтобы избежать неопределённого результата.",
+                                    color=WarningRed,fontSize=12.sp)
+                            }
+                        }
+                    },
+                    dismissButton={TextButton(onClick={confirmLogout=false}) {
+                        Text("ОСТАТЬСЯ",color=PaleText)
+                    }},
                     confirmButton={
-                        TextButton(onClick={
-                            confirmLogout=false
-                            scope.launch {client.logout();page="home"}
-                        }) {Text("Выйти",color=WarningRed)}
+                        Button(
+                            onClick={
+                                confirmLogout=false
+                                scope.launch {client.logout();page="home"}
+                            },
+                            enabled=!client.opening && !client.selling &&
+                                client.bulkSaleTotal==0 && !client.tradeBusy &&
+                                client.batchOpenTarget==0,
+                            colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF8E3744)),
+                            shape=RoundedCornerShape(4.dp)
+                        ) {Text("ДА, ВЫЙТИ",fontWeight=FontWeight.Black,fontSize=11.sp)}
                     }
                 )
             }

@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.015.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.016.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Landscape multi-case opening (0.0.015)
 
@@ -10,6 +10,13 @@ Native Android game written in Kotlin + Jetpack Compose.
 - In the case inspector choose 1 through 5 openings. The app displays aggregate price before the action.
 - Multi-open uses the authenticated **existing** single-case WebSocket event sequentially; the server remains authoritative over cost and every awarded item.
 - Progress tracks confirmed responses only. A disconnect or acknowledgment timeout stops further requests; the user should verify the server inventory before retrying. There is no unsafe automatic retry.
+
+## Safe bulk sale and confirmations (0.0.016)
+
+- Inventory has a sell-all action with count and approximate value of **the entire inventory**, independently of active filters.
+- Client serializes existing server-authoritative `sell_item` operations; each following item waits for an acknowledgment. Interrupted actions are never retried automatically, and the UI asks the player to check inventory.
+- Account logout requires explicit confirmation and is blocked during pending inventory-changing actions.
+- Accepting an incoming trade requires a confirmation preview of the exact items and coin amounts to give and receive. Trade ownership and balances remain revalidated by the server.
 
 ## Install
 

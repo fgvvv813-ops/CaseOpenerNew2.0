@@ -553,6 +553,8 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
     var filter by rememberSaveable{mutableStateOf("Все")}
     var sort by rememberSaveable{mutableStateOf("Новые")}
     var page by rememberSaveable{mutableIntStateOf(0)}
+    var sellAllSnapshot by remember { mutableStateOf<List<OwnedSkin>?>(null) }
+    var sellAllRevision by remember { mutableIntStateOf(-1) }
     val raw=client.state?.inventory.orEmpty()
     val filtered=remember(raw,query,filter,sort) {
         val matches=raw.filter { skin ->
@@ -580,11 +582,11 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
     LaunchedEffect(query,filter,sort){page=0}
     Column(modifier.fillMaxSize().padding(horizontal=11.dp,vertical=6.dp)) {
         Row(
-            Modifier.fillMaxWidth().height(36.dp),
+            Modifier.fillMaxWidth().heightIn(min=36.dp),
             verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(6.dp)
         ) {
-            Text("ИНВЕНТАРЬ",fontSize=15.sp,fontWeight=FontWeight.Black)
+            Text("ИНВЕНТАРЬ",fontSize=15.sp,fontWeight=FontWeight.Black,maxLines=1)
             Text(raw.size.toString(),color=NeonGold,fontSize=11.sp)
             androidx.compose.foundation.text.BasicTextField(
                 value=query,onValueChange={query=it.take(80)},singleLine=true,
@@ -594,25 +596,52 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
                     .padding(horizontal=8.dp,vertical=7.dp),
                 decorationBox={inner->
                     Box {
-                        if(query.isEmpty())Text("⌕ Найти скин…",color=PaleText,fontSize=12.sp)
+                        if(query.isEmpty()) Text("⌕ Найти скин…",color=PaleText,fontSize=12.sp)
                         inner()
                     }
                 }
             )
+            val sorts=listOf("Новые","Редкость","Цена ↓","Цена ↑")
+            Text("⇅ "+sort,modifier=Modifier.clickable {
+                sort=sorts[(sorts.indexOf(sort)+1)%sorts.size]
+            }.padding(4.dp),fontSize=10.sp,color=NeonGold,maxLines=1)
+            Button(
+                onClick={
+                    sellAllSnapshot=raw.toList()
+                    sellAllRevision=client.state?.revision?:-1
+                },
+                enabled=raw.isNotEmpty() && client.status=="Онлайн" &&
+                    !client.opening && !client.selling && client.bulkSaleTotal==0 &&
+                    client.batchOpenTarget==0 && !client.tradeBusy,
+                shape=RoundedCornerShape(3.dp),
+                colors=ButtonDefaults.buttonColors(
+                    containerColor=Color(0xFF8E3744),
+                    disabledContainerColor=Color(0xFF3B485A)
+                ),
+                border=BorderStroke(1.dp,WarningRed.copy(alpha=.65f)),
+                contentPadding=PaddingValues(horizontal=10.dp,vertical=5.dp),
+                modifier=Modifier.height(32.dp)
+            ) {
+                Text("ПРОДАТЬ ВСЁ",fontSize=10.sp,fontWeight=FontWeight.Black,maxLines=1)
+            }
+        }
+        Row(Modifier.fillMaxWidth().height(29.dp),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(6.dp)) {
             listOf("Все","Редкие","Эпические","Легендарные").forEach {option->
                 val active=filter==option
                 Surface(
                     color=if(active)Color(0xFF496D94) else DarkPanel,
                     border=BorderStroke(1.dp,if(active)NeonGold else FrameBorder),
                     shape=RoundedCornerShape(3.dp),
-                    modifier=Modifier.clickable{filter=option}
-                ) { Text(option,fontSize=10.sp,color=SoftWhite,
-                    modifier=Modifier.padding(horizontal=8.dp,vertical=7.dp)) }
+                    modifier=Modifier.clickable {filter=option}
+                ) {
+                    Text(option,fontSize=10.sp,color=SoftWhite,
+                        modifier=Modifier.padding(horizontal=9.dp,vertical=6.dp))
+                }
             }
-            val sorts=listOf("Новые","Редкость","Цена ↓","Цена ↑")
-            Text("⇅ "+sort,modifier=Modifier.clickable{
-                sort=sorts[(sorts.indexOf(sort)+1)%sorts.size]
-            }.padding(5.dp),fontSize=10.sp,color=NeonGold,maxLines=1)
+            Spacer(Modifier.weight(1f))
+            Text("Продажа всех предметов инвентаря",fontSize=9.sp,color=PaleText,maxLines=1)
         }
         Spacer(Modifier.height(7.dp))
         if(visible.isEmpty()) {
@@ -669,6 +698,49 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
             }
         }
     }
+    sellAllSnapshot?.let { snapshot ->
+        val sum=snapshot.sumOf {it.value.toLong()}
+        val stillCurrent=client.state?.revision==sellAllRevision &&
+            client.state?.inventory?.map{it.id}?.toSet()==snapshot.map{it.id}.toSet()
+        AlertDialog(
+            onDismissRequest={sellAllSnapshot=null},
+            containerColor=DarkPanel,
+            shape=RoundedCornerShape(7.dp),
+            title={Text("Продать ВСЕ скины?",fontWeight=FontWeight.Black,color=WarningRed)},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(7.dp)) {
+                    Text("Будут проданы все "+snapshot.size+" предметов инвентаря, а не только скины по текущему фильтру.",
+                        color=SoftWhite,fontSize=13.sp)
+                    Text("Ожидаемая сумма: ◈ "+sum,
+                        color=NeonGold,fontWeight=FontWeight.Black,fontSize=15.sp)
+                    Text("Отменить уже выполненные продажи нельзя. Каждый предмет продаётся отдельно после подтверждения сервером.",
+                        color=PaleText,fontSize=11.sp)
+                    if(!stillCurrent) {
+                        Text("Инвентарь изменился. Закрой окно и проверь список перед продажей.",
+                            color=WarningRed,fontSize=11.sp)
+                    }
+                }
+            },
+            dismissButton={TextButton(onClick={sellAllSnapshot=null}) {
+                Text("ОТМЕНА",color=PaleText)
+            }},
+            confirmButton={
+                Button(
+                    enabled=stillCurrent && snapshot.isNotEmpty() &&
+                        client.status=="Онлайн" && !client.opening &&
+                        !client.selling && client.bulkSaleTotal==0,
+                    onClick={
+                        if(client.sellAllItems(snapshot,sellAllRevision)) {
+                            sellAllSnapshot=null
+                        }
+                    },
+                    colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF8E3744)),
+                    shape=RoundedCornerShape(4.dp)
+                ) {Text("ДА, ПРОДАТЬ ВСЁ",fontSize=11.sp,fontWeight=FontWeight.Black)}
+            }
+        )
+    }
+
 }
 
 @Composable
