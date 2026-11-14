@@ -42,19 +42,19 @@ internal fun PremiumHome(
         item {
             BoxWithConstraints(
                 Modifier.fillMaxWidth().heightIn(min=200.dp)
-                    .clip(RoundedCornerShape(23.dp))
+                    .clip(RoundedCornerShape(11.dp))
                     .background(
-                        Brush.horizontalGradient(listOf(Color(0xFF214953),Color(0xFF14323E),Color(0xFF2A2F30)))
+                        Brush.horizontalGradient(listOf(Color(0xFF274668),Color(0xFF172D48),Color(0xFF111E31)))
                     )
-                    .border(1.dp,NeonViolet.copy(alpha=0.28f),RoundedCornerShape(23.dp))
+                    .border(1.dp,NeonViolet.copy(alpha=0.28f),RoundedCornerShape(11.dp))
             ) {
                 val compact=maxWidth < 430.dp
                 Row(Modifier.fillMaxWidth().padding(if(compact)18.dp else 24.dp),
                     verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(if(compact)1f else 1.2f)) {
-                        Text("Твоя коллекция начинается здесь",fontSize=if(compact)22.sp else 27.sp,
+                        Text("ОТКРЫВАЙ КЕЙСЫ",fontSize=if(compact)22.sp else 27.sp,
                             color=SoftWhite,fontWeight=FontWeight.Black,maxLines=2)
-                        Text("CASEOPENER 2.0",color=NeonGold,
+                        Text("CASE OPENER • NEW 2.0",color=NeonGold,
                             fontSize=if(compact)13.sp else 16.sp,
                             fontWeight=FontWeight.Black,maxLines=2)
                         Spacer(Modifier.height(8.dp))
@@ -130,8 +130,8 @@ internal fun PremiumHome(
 @Composable
 private fun HomeCaseCard(gameCase:GameCase,onClick:()->Unit) {
     Surface(
-        color=DarkPanel,
-        shape=RoundedCornerShape(18.dp),
+        color=Color(0xFF21344B),
+        shape=RoundedCornerShape(9.dp),
         border=BorderStroke(1.dp,when(gameCase.id.lowercase()) {
             "neon"->NeonBlue
             "legend"->NeonGold
@@ -158,7 +158,7 @@ private fun RewardPreview(skin:OwnedSkin) {
     val hue=rarityHue(skin.rarity)
     Surface(
         modifier=Modifier.width(133.dp),
-        color=DarkPanel,shape=RoundedCornerShape(15.dp),
+        color=Color(0xFF21344B),shape=RoundedCornerShape(9.dp),
         border=BorderStroke(1.dp,hue)
     ) {
         Column(Modifier.padding(8.dp)) {
@@ -173,7 +173,7 @@ private fun RewardPreview(skin:OwnedSkin) {
 
 @Composable
 private fun HomeStat(symbol:String,label:String,value:String,color:Color,modifier:Modifier) {
-    Surface(color=DarkPanel,shape=RoundedCornerShape(14.dp),
+    Surface(color=Color(0xFF21344B),shape=RoundedCornerShape(9.dp),
         border=BorderStroke(1.dp,color.copy(alpha=0.6f)),modifier=modifier) {
         Column(Modifier.padding(10.dp),horizontalAlignment=Alignment.CenterHorizontally) {
             Text(symbol,fontSize=20.sp,color=color)
@@ -486,7 +486,7 @@ internal fun PremiumInventory(
 private fun InventoryTile(skin:OwnedSkin,busy:Boolean,onSell:()->Unit) {
     val hue=rarityHue(skin.rarity)
     Surface(
-        color=DarkPanel,shape=RoundedCornerShape(18.dp),
+        color=Color(0xFF21344B),shape=RoundedCornerShape(9.dp),
         border=BorderStroke(1.dp,hue.copy(alpha=0.79f)),
         modifier=Modifier.fillMaxWidth()
     ) {
