@@ -198,7 +198,8 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0, foregroundVersion:Int
                         pending=client.trades.count {
                             it.receiverId==client.state?.userId && it.status=="pending"
                         },
-                        onSelect={page=it}
+                        onSelect={page=it},
+                        reducedMotion=reducedMotion
                     )
                 }
                 client.reward?.let { item ->
