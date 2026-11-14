@@ -483,11 +483,10 @@ class GameClient(context: Context) {
                 if(notices.none {it.id==notice.id}) {
                     notices=(listOf(notice)+notices).sortedByDescending{it.id}.take(1000)
                     unreadNotices=(unreadNotices+1).coerceAtMost(99999)
-                    // Avoid two system notifications when FCM handles
-                    // background delivery and the socket is still alive.
-                    if(AppVisibility.visible || !PushManager.configured()) {
-                        DeviceAlerts.notify(appContext,notice)
-                    }
+                    // Show a socket-delivered alert even when FCM is unreachable.
+                    // Both local and FCM notifications use the same stable tag,
+                    // so Android can replace duplicates for a single notice.
+                    DeviceAlerts.notify(appContext,notice)
                 }
             }
             "notifications_read" -> {
