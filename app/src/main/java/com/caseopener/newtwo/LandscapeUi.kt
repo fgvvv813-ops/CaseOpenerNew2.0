@@ -1,6 +1,9 @@
 package com.caseopener.newtwo
 
 import androidx.compose.foundation.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -23,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -42,67 +46,100 @@ internal fun LandscapeHeader(
     onSettings: () -> Unit
 ) {
     val state=client.state
-    Row(
-        Modifier.fillMaxWidth().height(52.dp)
-            .background(Brush.horizontalGradient(listOf(Color(0xFF314F6D),Color(0xFF14253B))))
-            .border(BorderStroke(1.dp,FrameBorder))
-            .padding(horizontal=12.dp),
-        verticalAlignment=Alignment.CenterVertically
-    ) {
-        Image(painterResource(R.drawable.ic_launcher),null,
-            Modifier.size(36.dp).clip(RoundedCornerShape(5.dp)).clickable(onClick=onProfile))
-        Spacer(Modifier.width(9.dp))
-        Column(Modifier.widthIn(min=112.dp,max=168.dp).clickable(onClick=onProfile)) {
-            Text(state?.username.orEmpty(),fontSize=14.sp,fontWeight=FontWeight.Black,
-                maxLines=1,overflow=TextOverflow.Ellipsis,color=SoftWhite)
-            Row(verticalAlignment=Alignment.CenterVertically) {
-                Text("LVL "+progressLevel(state?.openings?:0),fontSize=10.sp,color=NeonGold)
-                Spacer(Modifier.width(6.dp))
-                LinearProgressIndicator(
-                    progress={progressFraction(state?.openings?:0)},
-                    modifier=Modifier.width(65.dp).height(5.dp).clip(RoundedCornerShape(2.dp)),
-                    color=Color(0xFF53B8EE),trackColor=Color(0xFF091523)
-                )
-            }
-        }
-        Spacer(Modifier.width(14.dp))
-        Text("CASE OPENER",fontWeight=FontWeight.Black,fontSize=18.sp,
-            color=SoftWhite,maxLines=1,modifier=Modifier.weight(1f))
-        Text("●",fontSize=9.sp,color=if(client.status=="Онлайн")Color(0xFF76D75A) else WarningRed)
-        Spacer(Modifier.width(10.dp))
-        Surface(
-            color=Color(0xFF233B50),border=BorderStroke(1.dp,NeonGold.copy(alpha=.65f)),
-            shape=RoundedCornerShape(5.dp)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val narrow=maxWidth<760.dp
+        val tiny=maxWidth<560.dp
+        Row(
+            Modifier.fillMaxWidth().height(if(tiny)46.dp else 52.dp)
+                .background(Brush.horizontalGradient(listOf(Color(0xFF365577),Color(0xFF10223B))))
+                .border(BorderStroke(1.dp,FrameBorder))
+                .padding(horizontal=if(tiny)6.dp else 12.dp),
+            verticalAlignment=Alignment.CenterVertically
         ) {
-            Text("◈  "+(state?.balance?:0).toString(),fontSize=14.sp,
-                color=NeonGold,fontWeight=FontWeight.Black,
-                modifier=Modifier.padding(horizontal=13.dp,vertical=6.dp),maxLines=1)
+            Image(
+                painterResource(R.drawable.ic_launcher),null,
+                Modifier.size(if(tiny)29.dp else 36.dp)
+                    .clip(RoundedCornerShape(5.dp)).clickable(onClick=onProfile)
+            )
+            Spacer(Modifier.width(if(tiny)5.dp else 9.dp))
+            Column(
+                Modifier.width(if(tiny)101.dp else if(narrow)126.dp else 168.dp)
+                    .clickable(onClick=onProfile)
+            ) {
+                Text(state?.username.orEmpty(),fontSize=if(tiny)11.sp else 14.sp,
+                    fontWeight=FontWeight.Black,maxLines=1,
+                    overflow=TextOverflow.Ellipsis,color=SoftWhite)
+                Row(verticalAlignment=Alignment.CenterVertically) {
+                    Text("LVL "+progressLevel(state?.openings?:0),
+                        fontSize=if(tiny)9.sp else 10.sp,color=NeonGold)
+                    if(!tiny) {
+                        Spacer(Modifier.width(6.dp))
+                        LinearProgressIndicator(
+                            progress={progressFraction(state?.openings?:0)},
+                            modifier=Modifier.width(65.dp).height(5.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color=NeonBlue,trackColor=Color(0xFF091523)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.width(if(tiny)4.dp else 12.dp))
+            if(tiny) Spacer(Modifier.weight(1f))
+            else Text(
+                "CASE OPENER",fontWeight=FontWeight.Black,
+                fontSize=if(narrow)14.sp else 18.sp,
+                color=SoftWhite,maxLines=1,
+                overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f),
+                fontStyle=androidx.compose.ui.text.font.FontStyle.Italic
+            )
+            Text("●",fontSize=9.sp,
+                color=if(client.status=="Онлайн")Color(0xFF76D75A) else WarningRed)
+            Spacer(Modifier.width(if(tiny)4.dp else 10.dp))
+            Surface(
+                color=Color(0xFF243D56),
+                border=BorderStroke(1.dp,NeonGold.copy(alpha=.72f)),
+                shape=RoundedCornerShape(5.dp)
+            ) {
+                Text("◈ "+(state?.balance?:0),
+                    fontSize=if(tiny)11.sp else 14.sp,
+                    color=NeonGold,fontWeight=FontWeight.Black,
+                    modifier=Modifier.padding(
+                        horizontal=if(tiny)6.dp else 13.dp,
+                        vertical=if(tiny)5.dp else 6.dp
+                    ),maxLines=1)
+            }
+            Spacer(Modifier.width(if(tiny)4.dp else 9.dp))
+            LandscapeHudButton("🔔",client.unreadNotices>0,onNotifications,
+                if(tiny)28.dp else 34.dp)
+            Spacer(Modifier.width(if(tiny)3.dp else 6.dp))
+            LandscapeHudButton("⚙",false,onSettings,if(tiny)28.dp else 34.dp)
         }
-        Spacer(Modifier.width(9.dp))
-        LandscapeHudButton("🔔",client.unreadNotices>0,onNotifications)
-        Spacer(Modifier.width(6.dp))
-        LandscapeHudButton("⚙",false,onSettings)
     }
 }
 
 @Composable
-private fun LandscapeHudButton(label:String,alert:Boolean,onClick:()->Unit) {
+private fun LandscapeHudButton(label:String,alert:Boolean,onClick:()->Unit,size:Dp=34.dp) {
     Box {
         Surface(
             color=Color(0xFF2B4663),border=BorderStroke(1.dp,FrameBorder),
             shape=RoundedCornerShape(5.dp),
-            modifier=Modifier.size(34.dp).clickable(onClick=onClick)
-        ) {Box(contentAlignment=Alignment.Center){Text(label,fontSize=17.sp)}}
+            modifier=Modifier.size(size).clickable(onClick=onClick)
+        ) {
+            Box(contentAlignment=Alignment.Center){
+                Text(label,fontSize=if(size<32.dp)14.sp else 17.sp)
+            }
+        }
         if(alert) Box(
             Modifier.size(7.dp).align(Alignment.TopEnd)
-                .background(NeonGold, RoundedCornerShape(20.dp))
+                .background(NeonGold,RoundedCornerShape(20.dp))
         )
     }
 }
 
 @Composable
 internal fun LandscapeNavigation(
-    selected:String,unread:Int,pending:Int,onSelect:(String)->Unit
+    selected:String,unread:Int,pending:Int,onSelect:(String)->Unit,
+    reducedMotion:Boolean=false
 ) {
     val options=listOf(
         Triple("home","⌂","ГЛАВНАЯ"),
@@ -112,9 +149,11 @@ internal fun LandscapeNavigation(
         Triple("chat","✉","ЧАТ"),
         Triple("menu","☰","МЕНЮ")
     )
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val tiny=maxWidth<560.dp
     Row(
-        Modifier.fillMaxWidth().height(51.dp)
-            .background(Brush.verticalGradient(listOf(Color(0xFF294461),Color(0xFF132237))))
+        Modifier.fillMaxWidth().height(if(tiny)44.dp else 51.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF2F4C6B),Color(0xFF132237))))
             .border(BorderStroke(1.dp,FrameBorder)),
         verticalAlignment=Alignment.CenterVertically
     ) {
@@ -123,22 +162,27 @@ internal fun LandscapeNavigation(
                 (selected=="player" && key=="chat") ||
                 (selected=="profile" && key=="menu")
             val count=when(key) {"chat"->unread;"trades"->pending;else->0}
+            val navTint by animateColorAsState(
+                targetValue=if(active)Color(0xFF456B93) else Color.Transparent,
+                animationSpec=if(reducedMotion)snap() else tween(180),label="GameTab"
+            )
             Column(
                 Modifier.weight(1f).fillMaxHeight()
-                    .background(if(active)Color(0xFF456B93) else Color.Transparent)
+                    .background(navTint)
                     .clickable {onSelect(key)}
                     .padding(top=3.dp),
                 horizontalAlignment=Alignment.CenterHorizontally,
                 verticalArrangement=Arrangement.Center
             ) {
-                Text(symbol+(if(count>0) " •" else ""),fontSize=20.sp,
+                Text(symbol+(if(count>0) " •" else ""),fontSize=if(tiny)17.sp else 20.sp,
                     color=if(active)NeonGold else SoftWhite,lineHeight=20.sp,
                     fontWeight=FontWeight.Bold)
-                Text(title,fontSize=9.sp,maxLines=1,
+                Text(title,fontSize=if(tiny)8.sp else 9.sp,maxLines=1,
                     fontWeight=if(active)FontWeight.Black else FontWeight.Medium,
                     color=if(active)SoftWhite else PaleText)
             }
         }
+    }
     }
 }
 
@@ -167,15 +211,17 @@ internal fun LandscapeHome(
 ) {
     BoxWithConstraints(modifier.fillMaxSize().padding(horizontal=12.dp,vertical=7.dp)) {
         val compact=maxHeight<245.dp
+        val smallHome=maxWidth<680.dp
+        val cardWidth=when {maxWidth<680.dp->138.dp;maxWidth>1100.dp->188.dp;else->160.dp}
         Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("CASE OPENER",fontWeight=FontWeight.Black,color=SoftWhite,
                     fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f),
                     fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)
-                Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
+                if(!smallHome) Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
                 Spacer(Modifier.width(12.dp))
                 Text("ВСЕ КЕЙСЫ  ›",Modifier.clickable(onClick=onCases),
-                    color=NeonGold,fontSize=11.sp,fontWeight=FontWeight.Bold)
+                    color=NeonGold,fontSize=if(smallHome)10.sp else 11.sp,fontWeight=FontWeight.Bold)
             }
             if(client.cases.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center){
@@ -187,7 +233,7 @@ internal fun LandscapeHome(
                     horizontalArrangement=Arrangement.spacedBy(9.dp)
                 ) {
                     items(client.cases,key={it.id}) { gameCase ->
-                        LandscapeCaseCard(gameCase,onClick={onCase(gameCase.id)})
+                        LandscapeCaseCard(gameCase,width=cardWidth,onClick={onCase(gameCase.id)})
                     }
                 }
             }
@@ -215,8 +261,8 @@ private fun LandscapeShortcut(glyph:String,title:String,modifier:Modifier,onClic
 }
 
 @Composable
-private fun LandscapeCaseCard(gameCase:GameCase,onClick:()->Unit) {
-    LandscapePanel(Modifier.width(160.dp).fillMaxHeight(),onClick=onClick) {
+private fun LandscapeCaseCard(gameCase:GameCase,width:Dp=160.dp,onClick:()->Unit) {
+    LandscapePanel(Modifier.width(width).fillMaxHeight(),onClick=onClick) {
         Box(Modifier.weight(1f).fillMaxWidth().padding(4.dp)
             .background(Brush.verticalGradient(listOf(Color(0xFF838C98),Color(0xFF596775))))) {
             GameArt(gameCase.imageUrl,gameCase.emoji,Modifier.fillMaxSize().padding(3.dp),gameCase.id)
@@ -255,6 +301,7 @@ internal fun LandscapeCatalog(
             Text("КЕЙСЫ",fontWeight=FontWeight.Black,fontSize=18.sp,
                 fontStyle=androidx.compose.ui.text.font.FontStyle.Italic,
                 modifier=Modifier.weight(1f))
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
             listOf("Все","Доступные","Легендарные").forEach {option->
                 val active=filter==option
                 Surface(
@@ -266,6 +313,7 @@ internal fun LandscapeCatalog(
                     Text(option,fontSize=10.sp,color=if(active)SoftWhite else PaleText,
                         modifier=Modifier.padding(horizontal=12.dp,vertical=5.dp))
                 }
+            }
             }
         }
         Spacer(Modifier.height(7.dp))
@@ -476,25 +524,29 @@ internal fun LandscapeLogin(client:GameClient) {
     var username by rememberSaveable{mutableStateOf("")}
     var password by remember{mutableStateOf("")}
     var visible by remember{mutableStateOf(false)}
-    Row(Modifier.fillMaxSize().padding(horizontal=18.dp,vertical=10.dp),
-        horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val compact=maxWidth<700.dp
+    Row(Modifier.fillMaxSize().padding(
+        horizontal=if(compact)8.dp else 18.dp,
+        vertical=if(compact)5.dp else 10.dp),
+        horizontalArrangement=Arrangement.spacedBy(if(compact)7.dp else 16.dp)) {
         Column(
-            Modifier.weight(.52f).fillMaxHeight(),
+            Modifier.weight(if(compact).42f else .52f).fillMaxHeight(),
             verticalArrangement=Arrangement.Center,
             horizontalAlignment=Alignment.Start
         ) {
-            Text("CASE OPENER",fontSize=32.sp,fontWeight=FontWeight.Black,
+            Text("CASE OPENER",fontSize=if(compact)22.sp else 32.sp,fontWeight=FontWeight.Black,
                 color=SoftWhite,maxLines=1)
-            Text("N E W   2 . 0",fontSize=15.sp,color=NeonGold,
+            Text("N E W   2 . 0",fontSize=if(compact)12.sp else 15.sp,color=NeonGold,
                 fontWeight=FontWeight.Black)
             Spacer(Modifier.height(12.dp))
-            Text("КЕЙСЫ  •  СКИНЫ  •  ОБМЕНЫ",fontSize=12.sp,
+            Text("КЕЙСЫ  •  СКИНЫ  •  ОБМЕНЫ",fontSize=if(compact)10.sp else 12.sp,
                 fontWeight=FontWeight.Bold,color=NeonBlue,maxLines=1)
             Spacer(Modifier.height(6.dp))
             Text("Коллекция, баланс и прогресс сохраняются в твоём аккаунте.",
                 fontSize=12.sp,color=PaleText,maxLines=3)
         }
-        LandscapePanel(Modifier.weight(.48f).fillMaxHeight()) {
+        LandscapePanel(Modifier.weight(if(compact).58f else .48f).fillMaxHeight()) {
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(horizontal=12.dp,vertical=8.dp),
@@ -543,6 +595,7 @@ internal fun LandscapeLogin(client:GameClient) {
                     fontSize=10.sp,color=NeonGold)
             }
         }
+    }
     }
 }
 
@@ -625,7 +678,8 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
                 Text("ПРОДАТЬ ВСЁ",fontSize=10.sp,fontWeight=FontWeight.Black,maxLines=1)
             }
         }
-        Row(Modifier.fillMaxWidth().height(29.dp),
+        Row(Modifier.fillMaxWidth().height(31.dp)
+            .horizontalScroll(rememberScrollState()),
             verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(6.dp)) {
             listOf("Все","Редкие","Эпические","Легендарные").forEach {option->
@@ -640,8 +694,8 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
                         modifier=Modifier.padding(horizontal=9.dp,vertical=6.dp))
                 }
             }
-            Spacer(Modifier.weight(1f))
-            Text("Продажа всех предметов инвентаря",fontSize=9.sp,color=PaleText,maxLines=1)
+            Spacer(Modifier.width(10.dp))
+            Text("Фильтр не влияет на продажу всех",fontSize=9.sp,color=PaleText,maxLines=1)
         }
         Spacer(Modifier.height(7.dp))
         if(visible.isEmpty()) {
@@ -713,7 +767,7 @@ internal fun LandscapeInventory(client:GameClient,modifier:Modifier=Modifier) {
                         color=SoftWhite,fontSize=13.sp)
                     Text("Ожидаемая сумма: ◈ "+sum,
                         color=NeonGold,fontWeight=FontWeight.Black,fontSize=15.sp)
-                    Text("Отменить уже выполненные продажи нельзя. Каждый предмет продаётся отдельно после подтверждения сервером.",
+                    Text("Все скины продаются одной транзакцией сервера. После подтверждения действие нельзя отменить.",
                         color=PaleText,fontSize=11.sp)
                     if(!stillCurrent) {
                         Text("Инвентарь изменился. Закрой окно и проверь список перед продажей.",
