@@ -426,20 +426,89 @@ internal fun PremiumTrades(client:GameClient,modifier:Modifier,padding:Dp) {
         Spacer(Modifier.height(18.dp))
     }
     confirm?.let{(id,decision)->
+        val trade=client.trades.firstOrNull {it.id==id}
+        val incoming=trade?.receiverId==playerId
+        val current=trade!=null && trade.status=="pending" &&
+            trade.expiresAt>System.currentTimeMillis()/1000
+        val allowed=when(decision) {
+            "accept","reject"->incoming
+            "cancel"->trade?.senderId==playerId
+            else->false
+        }
+        val canConfirm=current && allowed && client.status=="Онлайн" &&
+            !client.tradeBusy && !client.selling && client.bulkSaleTotal==0
         AlertDialog(
-            onDismissRequest={confirm=null},containerColor=DarkPanel,
-            title={Text(when(decision){
-                "accept"->"Подтвердить обмен?"
-                "reject"->"Отклонить трейд?"
-                else->"Отменить предложение?"
-            })},
-            text={Text(if(decision=="accept")
-                "Сервер передаст выбранные скины и монеты обоим игрокам. Это действие нельзя отменить."
-                else "Обмен не состоится.")},
-            dismissButton={TextButton(onClick={confirm=null}){Text("Назад")}},
-            confirmButton={TextButton(onClick={
-                client.decideTrade(id,decision);confirm=null
-            }){Text("Подтвердить",color=NeonGold)}}
+            onDismissRequest={confirm=null},
+            containerColor=DarkPanel,
+            shape=RoundedCornerShape(7.dp),
+            title={Text(
+                when(decision){
+                    "accept"->"Подтвердить принятие трейда?"
+                    "reject"->"Отклонить трейд?"
+                    else->"Отменить предложение?"
+                },fontWeight=FontWeight.Black,color=SoftWhite
+            )},
+            text={
+                Column(
+                    Modifier.heightIn(max=230.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement=Arrangement.spacedBy(8.dp)
+                ) {
+                    if(trade==null || !current || !allowed) {
+                        Text("Трейд уже недоступен или изменился. Закрой окно и обнови предложения.",
+                            color=WarningRed,fontSize=12.sp)
+                    } else if(decision=="accept") {
+                        Text("Отправитель: "+trade.senderName,
+                            color=NeonBlue,fontSize=13.sp,fontWeight=FontWeight.Bold)
+                        Text("ТЫ ОТДАЁШЬ:",fontSize=11.sp,
+                            color=WarningRed,fontWeight=FontWeight.Black)
+                        Text(
+                            trade.requestItems.joinToString {it.name}.ifEmpty{"Без скинов"}+
+                                (if(trade.requestCoins>0) "\n◈ "+trade.requestCoins+" монет" else ""),
+                            color=SoftWhite,fontSize=12.sp
+                        )
+                        HorizontalDivider(color=NeonBlue.copy(alpha=.25f))
+                        Text("ТЫ ПОЛУЧАЕШЬ:",fontSize=11.sp,
+                            color=Color(0xFF88C96C),fontWeight=FontWeight.Black)
+                        Text(
+                            trade.offerItems.joinToString {it.name}.ifEmpty{"Без скинов"}+
+                                (if(trade.offerCoins>0) "\n◈ "+trade.offerCoins+" монет" else ""),
+                            color=SoftWhite,fontSize=12.sp
+                        )
+                        Text("После подтверждения сервер обменяет скины и монеты. Отменить принятый трейд нельзя.",
+                            color=NeonGold,fontSize=11.sp)
+                    } else {
+                        Text(
+                            if(decision=="reject")"Предложение будет отклонено. Обмен не состоится."
+                            else "Отправленное предложение будет отменено.",
+                            color=PaleText,fontSize=12.sp
+                        )
+                    }
+                }
+            },
+            dismissButton={TextButton(onClick={confirm=null}) {
+                Text("НАЗАД",color=PaleText)
+            }},
+            confirmButton={
+                Button(
+                    enabled=canConfirm,
+                    onClick={
+                        if(client.decideTrade(id,decision)) confirm=null
+                    },
+                    shape=RoundedCornerShape(4.dp),
+                    colors=ButtonDefaults.buttonColors(
+                        containerColor=if(decision=="accept")Color(0xFF568739)
+                        else Color(0xFF8E3744)
+                    )
+                ) {
+                    Text(
+                        when(decision) {
+                            "accept"->"ДА, ПРИНЯТЬ ТРЕЙД"
+                            "reject"->"ДА, ОТКЛОНИТЬ"
+                            else->"ДА, ОТМЕНИТЬ"
+                        },fontSize=11.sp,fontWeight=FontWeight.Black
+                    )
+                }
+            }
         )
     }
 }
