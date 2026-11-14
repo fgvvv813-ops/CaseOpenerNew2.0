@@ -383,7 +383,7 @@ internal fun LandscapeCaseDetail(
                 )
             ) {
                 Text(if(client.opening)"ОТКРЫВАЕМ…" else
-                    "ОТКРЫТЬ "+quantity+when(quantity){1->" КЕЙС";2,3,4->" КЕЙСА";else->" КЕЙСОВ"},
+                    "ОТКРЫТЬ "+quantity+(when(quantity){1->" КЕЙС";2,3,4->" КЕЙСА";else->" КЕЙСОВ"}),
                     fontSize=12.sp,fontWeight=FontWeight.Black,maxLines=1)
             }
             Spacer(Modifier.height(5.dp))
