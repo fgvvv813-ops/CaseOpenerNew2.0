@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -40,102 +41,109 @@ internal fun PremiumRoulette(
         }
     }
     val scroll=rememberLazyListState()
-    var finished by remember(reward.id) {mutableStateOf(false)}
+    var finished by remember(reward.id){mutableStateOf(false)}
     LaunchedEffect(reward.id,reducedMotion) {
         scroll.scrollToItem(0)
-        if (reducedMotion) {
+        if(reducedMotion) {
             delay(180)
             scroll.scrollToItem(35)
         } else {
-            // Smooth movement in three phases. The server already chose
-            // the reward; this animation never controls game outcomes.
-            scroll.animateScrollToItem(10)
-            delay(120)
-            scroll.animateScrollToItem(25)
-            delay(180)
+            // Purely cosmetic: the server has already committed the actual drop.
+            scroll.animateScrollToItem(11)
+            delay(90)
+            scroll.animateScrollToItem(23)
+            delay(110)
             scroll.animateScrollToItem(35)
         }
         finished=true
     }
-    Dialog(onDismissRequest={if(finished)onClose()}) {
+    Dialog(
+        onDismissRequest={if(finished)onClose()},
+        properties=DialogProperties(usePlatformDefaultWidth=false)
+    ) {
         Surface(
-            modifier=Modifier.fillMaxWidth().widthIn(max=540.dp),
+            modifier=Modifier.fillMaxWidth(.94f).fillMaxHeight(.79f),
+            shape=RoundedCornerShape(7.dp),
             color=DarkBg,
-            border=BorderStroke(1.dp,NeonViolet),
-            shape=RoundedCornerShape(11.dp)
+            border=BorderStroke(2.dp,NeonBlue.copy(alpha=.7f))
         ) {
-            Column(
-                Modifier.fillMaxWidth().padding(vertical=22.dp),
-                horizontalAlignment=Alignment.CenterHorizontally
-            ) {
-                Text(if(finished)"ПОЛУЧЕН ПРЕДМЕТ" else "ОТКРЫВАЕМ КЕЙС…",
-                    color=if(finished)NeonGold else SoftWhite,
-                    fontWeight=FontWeight.Black,fontSize=19.sp,
-                    textAlign=TextAlign.Center)
-                Text("▼",color=NeonGold,fontSize=22.sp)
-                Box(
-                    Modifier.fillMaxWidth().height(166.dp)
-                        .background(Brush.verticalGradient(
-                            listOf(Color(0xFF273B55),Color(0xFF101E31))))
-                        .border(1.dp,NeonViolet.copy(alpha=0.75f))
-                ) {
-                    LazyRow(
-                        state=scroll,userScrollEnabled=false,
-                        modifier=Modifier.fillMaxSize(),
-                        verticalAlignment=Alignment.CenterVertically,
-                        horizontalArrangement=Arrangement.spacedBy(8.dp),
-                        contentPadding=PaddingValues(horizontal=11.dp)
-                    ) {
-                        itemsIndexed(sequence) { index,skin->
-                            val hue=rarityHue(skin.rarity)
-                            Surface(
-                                color=if(index==36)Color(0xFF385574) else DarkPanel,
-                                border=BorderStroke(1.dp,hue),
-                                shape=RoundedCornerShape(8.dp),
-                                modifier=Modifier.width(119.dp).height(137.dp)
-                            ) {
-                                Column(Modifier.padding(6.dp),
-                                    horizontalAlignment=Alignment.CenterHorizontally) {
-                                    GameArt(skin.imageUrl,skin.emoji,
-                                        Modifier.fillMaxWidth().height(89.dp))
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(skin.name,maxLines=2,
-                                        overflow=TextOverflow.Ellipsis,
-                                        color=SoftWhite,fontSize=10.sp,
-                                        textAlign=TextAlign.Center)
+            Row(Modifier.fillMaxSize().padding(10.dp),
+                horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(.72f).fillMaxHeight(),
+                    verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                        Text("ОТКРЫТИЕ КЕЙСА",fontSize=17.sp,fontWeight=FontWeight.Black,
+                            modifier=Modifier.weight(1f))
+                        Text(gameCase?.name.orEmpty(),fontSize=11.sp,color=PaleText)
+                    }
+                    Box(Modifier.fillMaxWidth().weight(1f)
+                        .border(1.dp,NeonBlue.copy(alpha=.6f),RoundedCornerShape(4.dp))
+                        .background(Brush.verticalGradient(listOf(
+                            Color(0xFF2E4662),Color(0xFF111F32)))),contentAlignment=Alignment.Center) {
+                        LazyRow(
+                            state=scroll,userScrollEnabled=false,
+                            modifier=Modifier.fillMaxSize(),
+                            verticalAlignment=Alignment.CenterVertically,
+                            horizontalArrangement=Arrangement.spacedBy(6.dp),
+                            contentPadding=PaddingValues(horizontal=6.dp)
+                        ) {
+                            itemsIndexed(sequence){index,skin->
+                                val hue=rarityHue(skin.rarity)
+                                Surface(
+                                    modifier=Modifier.width(102.dp).fillMaxHeight(.88f),
+                                    shape=RoundedCornerShape(4.dp),
+                                    color=if(index==36)Color(0xFF395578) else DarkPanel,
+                                    border=BorderStroke(1.dp,hue)
+                                ) {
+                                    Column(Modifier.padding(5.dp),
+                                        horizontalAlignment=Alignment.CenterHorizontally) {
+                                        GameArt(skin.imageUrl,skin.emoji,
+                                            Modifier.weight(1f).fillMaxWidth())
+                                        Text(skin.name,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                            fontSize=10.sp,color=SoftWhite)
+                                    }
                                 }
                             }
                         }
+                        Box(Modifier.align(Alignment.Center).width(3.dp).fillMaxHeight()
+                            .background(NeonGold))
+                        Text("▼",fontSize=17.sp,color=NeonGold,
+                            modifier=Modifier.align(Alignment.TopCenter))
                     }
-                    Box(
-                        Modifier.align(Alignment.Center).width(3.dp).fillMaxHeight()
-                            .background(NeonGold.copy(alpha=0.65f))
-                    )
+                    Text(if(finished)"НАГРАДА ПОЛУЧЕНА" else "ПОДБИРАЕМ ПРЕДМЕТ…",
+                        color=if(finished)NeonGold else PaleText,fontSize=11.sp,
+                        fontWeight=FontWeight.Bold)
                 }
-                Text("▲",color=NeonGold,fontSize=22.sp)
-                if(finished) {
-                    Spacer(Modifier.height(5.dp))
-                    Text(reward.name,modifier=Modifier.padding(horizontal=12.dp),
-                        color=rarityHue(reward.rarity),fontWeight=FontWeight.Black,
-                        fontSize=19.sp,textAlign=TextAlign.Center)
-                    Spacer(Modifier.height(8.dp))
-                    RarityTag(reward.rarity)
-                    Spacer(Modifier.height(8.dp))
-                    GoldPrice(reward.value,15)
-                    Spacer(Modifier.height(17.dp))
-                    GoldButton(
-                        text="ЗАБРАТЬ НАГРАДУ",
-                        onClick=onClose,
-                        modifier=Modifier.fillMaxWidth().padding(horizontal=23.dp)
-                    )
-                } else {
-                    Spacer(Modifier.height(12.dp))
-                    CircularProgressIndicator(
-                        modifier=Modifier.size(24.dp),
-                        strokeWidth=2.dp,color=NeonViolet
-                    )
-                    Spacer(Modifier.height(7.dp))
-                    Text("Рулетка вращается…",color=PaleText,fontSize=12.sp)
+                Column(
+                    Modifier.weight(.28f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                    horizontalAlignment=Alignment.CenterHorizontally,
+                    verticalArrangement=Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(if(finished)"ВАШ ПРЕДМЕТ" else "ОЖИДАНИЕ",
+                        fontSize=13.sp,color=NeonGold,fontWeight=FontWeight.Black,
+                        textAlign=TextAlign.Center)
+                    if(finished) {
+                        GameArt(reward.imageUrl,reward.emoji,
+                            Modifier.fillMaxWidth().height(72.dp))
+                        Text(reward.name,fontWeight=FontWeight.Black,fontSize=12.sp,
+                            maxLines=2,textAlign=TextAlign.Center,
+                            color=rarityHue(reward.rarity))
+                        Text(reward.rarity,fontSize=11.sp,color=PaleText)
+                        Text("◈ "+reward.value,fontSize=13.sp,
+                            fontWeight=FontWeight.Black,color=NeonGold)
+                        Button(
+                            onClick=onClose,modifier=Modifier.fillMaxWidth().height(39.dp),
+                            shape=RoundedCornerShape(4.dp),
+                            colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF558B36)),
+                            contentPadding=PaddingValues(horizontal=4.dp)
+                        ) {
+                            Text("ЗАБРАТЬ",fontSize=12.sp,fontWeight=FontWeight.Black)
+                        }
+                    } else {
+                        Spacer(Modifier.height(25.dp))
+                        CircularProgressIndicator(modifier=Modifier.size(24.dp),
+                            color=NeonGold,strokeWidth=2.dp)
+                    }
                 }
             }
         }
