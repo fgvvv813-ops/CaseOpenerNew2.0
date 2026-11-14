@@ -30,9 +30,9 @@ import kotlinx.coroutines.launch
 // The original case-opening game's landscape hierarchy: a slim player HUD,
 // horizontal case showcase, dark navy metallic panels, and compact bottom tabs.
 // All inventory, currency, case art and outcomes are still sourced from GameClient.
-private val FrameBorder = Color(0xFF426080)
-private val FrameInterior = Color(0xFF1C304A)
-private val ActionGreen = Color(0xFF558B36)
+private val FrameBorder = Color(0xFF6686A7)
+private val FrameInterior = Color(0xFF203C5B)
+private val ActionGreen = Color(0xFF5B9436)
 
 @Composable
 internal fun LandscapeHeader(
@@ -150,7 +150,7 @@ private fun LandscapePanel(
     content:@Composable ColumnScope.()->Unit
 ) {
     val base=modifier.clip(RoundedCornerShape(5.dp))
-        .background(Brush.verticalGradient(listOf(Color(0xFF344B67),FrameInterior)))
+        .background(Brush.verticalGradient(listOf(Color(0xFF405F80),FrameInterior)))
         .border(1.dp,accent.copy(alpha=.85f),RoundedCornerShape(5.dp))
     Column(if(onClick!=null)base.clickable(onClick=onClick) else base,content=content)
 }
@@ -170,7 +170,8 @@ internal fun LandscapeHome(
         Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("CASE OPENER",fontWeight=FontWeight.Black,color=SoftWhite,
-                    fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f))
+                    fontSize=if(compact)16.sp else 19.sp,modifier=Modifier.weight(1f),
+                    fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)
                 Text("КОЛЛЕКЦИЯ КЕЙСОВ",color=PaleText,fontSize=10.sp)
                 Spacer(Modifier.width(12.dp))
                 Text("ВСЕ КЕЙСЫ  ›",Modifier.clickable(onClick=onCases),
@@ -215,9 +216,10 @@ private fun LandscapeShortcut(glyph:String,title:String,modifier:Modifier,onClic
 
 @Composable
 private fun LandscapeCaseCard(gameCase:GameCase,onClick:()->Unit) {
-    LandscapePanel(Modifier.width(156.dp).fillMaxHeight(),onClick=onClick) {
-        Box(Modifier.weight(1f).fillMaxWidth().padding(5.dp)) {
-            GameArt(gameCase.imageUrl,gameCase.emoji,Modifier.fillMaxSize(),gameCase.id)
+    LandscapePanel(Modifier.width(160.dp).fillMaxHeight(),onClick=onClick) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(4.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF838C98),Color(0xFF596775))))) {
+            GameArt(gameCase.imageUrl,gameCase.emoji,Modifier.fillMaxSize().padding(3.dp),gameCase.id)
         }
         Column(Modifier.fillMaxWidth().background(Color(0xFF122237))
             .padding(horizontal=8.dp,vertical=4.dp)) {
@@ -227,8 +229,9 @@ private fun LandscapeCaseCard(gameCase:GameCase,onClick:()->Unit) {
                 fontWeight=FontWeight.Bold,maxLines=1)
         }
         Box(
-            Modifier.fillMaxWidth().height(26.dp)
-                .background(ActionGreen).clickable(onClick=onClick),
+            Modifier.fillMaxWidth().height(29.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFF74A447),ActionGreen)))
+                .clickable(onClick=onClick),
             contentAlignment=Alignment.Center
         ) {
             Text("ПОСМОТРЕТЬ",fontSize=10.sp,color=Color.White,fontWeight=FontWeight.Black)
@@ -250,6 +253,7 @@ internal fun LandscapeCatalog(
     Column(modifier.fillMaxSize().padding(horizontal=12.dp,vertical=7.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             Text("КЕЙСЫ",fontWeight=FontWeight.Black,fontSize=18.sp,
+                fontStyle=androidx.compose.ui.text.font.FontStyle.Italic,
                 modifier=Modifier.weight(1f))
             listOf("Все","Доступные","Легендарные").forEach {option->
                 val active=filter==option
@@ -278,9 +282,12 @@ internal fun LandscapeCatalog(
                 contentPadding=PaddingValues(bottom=8.dp)
             ) {
                 items(cases,key={it.id}) { gameCase->
-                    LandscapePanel(Modifier.fillMaxWidth().height(158.dp),onClick={onCase(gameCase.id)}) {
-                        GameArt(gameCase.imageUrl,gameCase.emoji,
-                            Modifier.fillMaxWidth().weight(1f).padding(5.dp),gameCase.id)
+                    LandscapePanel(Modifier.fillMaxWidth().height(156.dp),onClick={onCase(gameCase.id)}) {
+                        Box(Modifier.fillMaxWidth().weight(1f).padding(4.dp)
+                            .background(Brush.verticalGradient(listOf(Color(0xFF88929F),Color(0xFF536476))))) {
+                            GameArt(gameCase.imageUrl,gameCase.emoji,
+                                Modifier.fillMaxSize().padding(3.dp),gameCase.id)
+                        }
                         Text(gameCase.name,fontSize=12.sp,fontWeight=FontWeight.Bold,
                             modifier=Modifier.padding(horizontal=8.dp),
                             maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -288,7 +295,7 @@ internal fun LandscapeCatalog(
                             verticalAlignment=Alignment.CenterVertically) {
                             Text("◈ "+gameCase.cost,fontSize=11.sp,color=NeonGold,
                                 fontWeight=FontWeight.Black,modifier=Modifier.weight(1f))
-                            Text("ОТКРЫТЬ ›",fontSize=10.sp,color=Color(0xFF9BDB81))
+                            Text("ОТКРЫТЬ ›",fontSize=10.sp,color=Color(0xFFB1E987),fontWeight=FontWeight.Bold)
                         }
                     }
                 }
