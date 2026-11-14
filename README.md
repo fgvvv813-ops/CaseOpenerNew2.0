@@ -2,7 +2,7 @@
 
 Native Android game written in Kotlin + Jetpack Compose.
 
-**Current version: 0.0.017.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
+**Current version: 0.0.018.** In-app game is **online only** and requires registration/login. Existing online accounts use the same encrypted session token format as the preceding version.
 
 ## Landscape multi-case opening (0.0.015)
 
@@ -26,6 +26,14 @@ Native Android game written in Kotlin + Jetpack Compose.
 - GitHub Actions repository variable `GAME_API_BASE` can point to a regional HTTPS/WSS reverse proxy on port 443; default is the old HTTP testing endpoint. Do not point regional proxies at distinct databases.
 - Closed-app delivery requires FCM connectivity, Android notification permission and Google Play services. Force-stopped apps cannot be guaranteed to receive messages; stored server notices resync on foreground.
 - Game API and Web Admin v0.0.017 are distributed separately with explicit SQLite migration instructions.
+
+## Responsive landscape UI and API performance (0.0.018)
+
+- Compact and full landscape Android layouts use available width: HUD, tab navigation, case shelf and login.
+- Filters scroll horizontally on narrow devices, instead of overflowing screen width.
+- Tab tint transition follows reduced-motion preferences.
+- API and admin site are **separately deployed** Python files. The 0.0.018 backend uses SQLite WAL, 32 MiB read mapping, 8 MiB per-connection page cache and 32 MiB retained WAL journal cap. It retains up to 50 diagnostic and audit log entries, not operation receipts.
+- Admin case/skin/chat/notification screens have pagination. Backup the actual database before deploying; SQLite single-writer limitations still apply. High concurrent write volume may require PostgreSQL.
 
 ## Install
 
