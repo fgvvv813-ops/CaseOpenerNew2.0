@@ -557,7 +557,7 @@ internal fun PremiumProfile(
                         progress={progressFraction(player.openings)},
                         modifier=Modifier.fillMaxWidth().height(6.dp)
                             .clip(RoundedCornerShape(9.dp)),
-                        color=NeonViolet,trackColor=Color(0xFF453659)
+                        color=NeonViolet,trackColor=Color(0xFF31515B)
                     )
                     Text((player.openings%20).toString()+" / 20 открытий до следующего уровня",
                         color=PaleText,fontSize=10.sp)
@@ -583,14 +583,6 @@ internal fun PremiumProfile(
             Text("☁  Прогресс автоматически сохраняется в твоём аккаунте.",
                 color=PaleText,fontSize=12.sp)
         }
-        OutlinedButton(
-            onClick=onSettings,modifier=Modifier.fillMaxWidth().heightIn(min=47.dp),
-            shape=RoundedCornerShape(13.dp)
-        ) {Text("⚙  Настройки приложения")}
-        OutlinedButton(
-            onClick=onNotes,modifier=Modifier.fillMaxWidth().heightIn(min=47.dp),
-            shape=RoundedCornerShape(13.dp)
-        ) {Text("✦  Что нового?")}
         OutlinedButton(
             onClick=onLogout,modifier=Modifier.fillMaxWidth().heightIn(min=49.dp),
             shape=RoundedCornerShape(13.dp),
