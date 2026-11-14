@@ -82,7 +82,8 @@ internal fun BatchOpenDialog(client:GameClient, reducedMotion:Boolean, onClose:(
                                 label="Подтверждённый предмет"
                             ) { shown ->
                                 if(shown==null) {
-                                    Column(Modifier.align(Alignment.Center),
+                                    Column(Modifier.fillMaxSize(),
+                                        verticalArrangement=Arrangement.Center,
                                         horizontalAlignment=Alignment.CenterHorizontally) {
                                         Text("◈",fontSize=28.sp,color=PaleText)
                                         Text(if(!done && index==drops.size)"ОТКРЫВАЕМ" else "ОЖИДАНИЕ",
