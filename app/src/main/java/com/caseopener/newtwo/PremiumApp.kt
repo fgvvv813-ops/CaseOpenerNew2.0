@@ -105,137 +105,96 @@ internal fun PremiumGame(openNotificationsVersion:Int = 0) {
         ) {
             HexPatternBackground(Modifier.matchParentSize())
             if(client.token==null) {
-                PremiumLogin(client)
+                LandscapeLogin(client)
             } else if(client.state==null) {
                 WaitingForAccount(client,
                     retry={client.reconnect()},
                     logout={scope.launch {client.logout(); page="home"}})
             } else {
-                BoxWithConstraints(Modifier.fillMaxSize()) {
-                    val tablet = maxWidth >= 720.dp
-                    val contentPadding = when {
-                        maxWidth < 350.dp -> 11.dp
-                        maxWidth < 590.dp -> 16.dp
-                        else -> 24.dp
+                Column(Modifier.fillMaxSize()) {
+                    LandscapeHeader(
+                        client=client,
+                        onProfile={page="profile"},
+                        onNotifications={showNotifications=true},
+                        onSettings={showSettings=true}
+                    )
+                    if(client.status!="Онлайн") {
+                        Text("Нет соединения. Действия с кейсами и обменами временно недоступны.",
+                            modifier=Modifier.fillMaxWidth().padding(horizontal=10.dp),
+                            color=NeonGold,fontSize=10.sp,maxLines=1)
                     }
-                    Row(Modifier.fillMaxSize()) {
-                        if(tablet) {
-                            PremiumSideNav(
-                                selected=page,
-                                unread=client.chatUnread,
-                                pending=client.trades.count {
-                                    it.receiverId==client.state?.userId && it.status=="pending"
-                                },
-                                onSelect={page=it}
-                            )
-                        }
-                        Box(Modifier.weight(1f).fillMaxHeight()) {
-                            Column(
-                                Modifier.fillMaxHeight().widthIn(max=1000.dp).fillMaxWidth()
-                                    .align(Alignment.TopCenter)
-                            ) {
-                        PremiumHeader(
-                            client=client,padding=contentPadding,
-                            onSettings={showSettings=true},
-                            onNotifications={showNotifications=true},
-                            hasCatalogUpdate=client.unreadNotices>0
-                        )
-                        if(client.status!="Онлайн") {
-                            Text("Соединение с сервером потеряно. Открытие и продажа временно недоступны.",
-                                modifier=Modifier.fillMaxWidth().padding(horizontal=contentPadding,vertical=5.dp),
-                                textAlign=TextAlign.Center,color=NeonGold,fontSize=11.sp)
-                        }
-                        client.error?.let {
-                            Text(it,modifier=Modifier.fillMaxWidth().padding(horizontal=contentPadding,vertical=4.dp),
-                                color=WarningRed,fontSize=12.sp)
-                        }
-                                Crossfade(
-                                    targetState=page,
-                                    modifier=Modifier.weight(1f),
-                                    animationSpec=if(reducedMotion) snap() else tween(300),
-                                    label="Экран"
-                                ) { activePage ->
-                                    when(activePage) {
-                            "home" -> PremiumHome(
+                    client.error?.let {
+                        Text(it,modifier=Modifier.fillMaxWidth().padding(horizontal=10.dp),
+                            color=WarningRed,fontSize=10.sp,maxLines=1)
+                    }
+                    Crossfade(
+                        targetState=page,
+                        modifier=Modifier.weight(1f),
+                        animationSpec=if(reducedMotion)snap() else tween(250),
+                        label="Игровой раздел"
+                    ) { activePage ->
+                        when(activePage) {
+                            "home" -> LandscapeHome(
                                 client=client,
-                                modifier=Modifier.fillMaxSize(),
-                                padding=contentPadding,
-                                onOpenCases={page="cases"},
+                                onCases={page="cases"},
                                 onCase={selectedCaseId=it;page="detail"},
-                                onProfile={page="profile"},
-                                onNotes={showNotes=true}
+                                onInventory={page="inventory"},
+                                onTrades={page="trades"},
+                                onChat={page="chat"}
                             )
-                            "cases" -> PremiumCases(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding,
+                            "cases" -> LandscapeCatalog(
+                                client=client,modifier=Modifier.fillMaxSize(),
                                 onCase={selectedCaseId=it;page="detail"}
                             )
                             "detail" -> {
-                                val chosen=client.cases.firstOrNull { it.id==selectedCaseId }
+                                val chosen=client.cases.firstOrNull{it.id==selectedCaseId}
                                 if(chosen==null) {
-                                    Box(Modifier.fillMaxSize().fillMaxWidth(),contentAlignment=Alignment.Center) {
+                                    Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
                                         TextButton(onClick={page="cases"}) {
-                                            Text("Этот кейс недоступен. Вернуться к кейсам")
+                                            Text("Кейс недоступен · назад к кейсам")
                                         }
                                     }
                                 } else {
-                                    PremiumCaseDetail(
-                                        client=client,gameCase=chosen,
-                                        modifier=Modifier.fillMaxSize(),padding=contentPadding,
-                                        onBack={page="cases"}
-                                    )
+                                    LandscapeCaseDetail(client=client,gameCase=chosen,
+                                        modifier=Modifier.fillMaxSize(),
+                                        onBack={page="cases"})
                                 }
                             }
                             "inventory" -> PremiumInventory(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding
+                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp
                             )
                             "trades" -> PremiumTrades(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding
-                            )
-                            "menu" -> PremiumMenu(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding,
-                                onPage={page=it},
-                                onNotes={showNotes=true}
+                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp
                             )
                             "chat" -> PremiumChat(
-                                client=client,
-                                modifier=Modifier.fillMaxSize(),
-                                padding=contentPadding,
-                                onPlayer={
-                                    client.requestPlayerProfile(it)
-                                    page="player"
-                                }
+                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp,
+                                onPlayer={client.requestPlayerProfile(it);page="player"}
                             )
                             "player" -> PremiumPlayerProfile(
-                                client=client,
-                                modifier=Modifier.fillMaxSize(),
-                                padding=contentPadding,
+                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp,
                                 onBack={page="chat"},
-                                onTrade={
-                                    client.requestTradeTarget(it)
-                                    page="trades"
-                                }
+                                onTrade={client.requestTradeTarget(it);page="trades"}
+                            )
+                            "menu" -> LandscapeMenu(
+                                modifier=Modifier.fillMaxSize(),
+                                onPage={page=it},onNotes={showNotes=true}
                             )
                             else -> PremiumProfile(
-                                client=client,modifier=Modifier.fillMaxSize(),padding=contentPadding,
+                                client=client,modifier=Modifier.fillMaxSize(),padding=12.dp,
                                 onLogout={confirmLogout=true},
                                 onSettings={showSettings=true},
                                 onNotes={showNotes=true}
                             )
                         }
-                                }
-                                if(!tablet) {
-                                    PremiumBottomNav(
-                                        selected=page,
-                                        unread=client.chatUnread,
-                                        pending=client.trades.count {
-                                            it.receiverId==client.state?.userId && it.status=="pending"
-                                        },
-                                        onSelect={page=it}
-                                    )
-                                }
-                            }
-                        }
                     }
+                    LandscapeNavigation(
+                        selected=page,
+                        unread=client.chatUnread,
+                        pending=client.trades.count {
+                            it.receiverId==client.state?.userId && it.status=="pending"
+                        },
+                        onSelect={page=it}
+                    )
                 }
                 client.reward?.let { item ->
                     PremiumRoulette(
