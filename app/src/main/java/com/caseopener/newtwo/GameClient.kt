@@ -632,6 +632,19 @@ class GameClient(context: Context) {
             .put("request_id", rid)
         if (socket?.send(payload.toString()) != true) return false
         pendingOpenRequest = rid
+        // An unacknowledged open must never be blindly retried: it may already
+        // have been committed on the server. Release the UI after a timeout.
+        main.postDelayed({
+            if (pendingOpenRequest == rid) {
+                pendingOpenRequest = null
+                opening = false
+                if (batchOpenTarget > 1) {
+                    batchOpenInterrupted = true
+                    batchOpenDone = true
+                }
+                error = "Нет подтверждения открытия. Проверь баланс и инвентарь перед повтором."
+            }
+        }, 18000L)
         return true
     }
 
